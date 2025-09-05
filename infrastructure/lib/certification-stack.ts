@@ -1,0 +1,100 @@
+import * as cdk from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import { Construct } from 'constructs';
+
+export class CertificationStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+
+    // S3 + CloudFront
+    const bucket = new s3.Bucket(this, 'FrontendBucket', {
+      websiteIndexDocument: 'index.html',
+      publicReadAccess: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+
+    const distribution = new cloudfront.Distribution(this, 'Distribution', {
+      defaultBehavior: { origin: new origins.S3Origin(bucket) }
+    });
+
+    // DynamoDB
+    const certTable = new dynamodb.Table(this, 'CertificationsTable', {
+      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+
+    const userTable = new dynamodb.Table(this, 'UsersTable', {
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+
+    // Cognito
+    const userPool = new cognito.UserPool(this, 'UserPool', {
+      selfSignUpEnabled: true,
+      signInAliases: { email: true }
+    });
+
+    const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
+      userPool,
+      generateSecret: false
+    });
+
+    // Lambda
+    const apiLambda = new lambda.Function(this, 'ApiLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('../lambda'),
+      environment: {
+        CERT_TABLE: certTable.tableName,
+        USER_TABLE: userTable.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId
+      }
+    });
+
+    // Bedrock permissions
+    apiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['arn:aws:bedrock:*::foundation-model/meta.llama3-1-8b-instruct-v1:0']
+    }));
+
+    // Cognito permissions
+    apiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['cognito-idp:InitiateAuth', 'cognito-idp:SignUp'],
+      resources: [userPool.userPoolArn]
+    }));
+
+    certTable.grantReadWriteData(apiLambda);
+    userTable.grantReadWriteData(apiLambda);
+
+    // API Gateway
+    const api = new apigateway.RestApi(this, 'CertificationApi', {
+      defaultCorsPreflightOptions: {
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        allowMethods: apigateway.Cors.ALL_METHODS
+      }
+    });
+
+    api.root.addProxy({
+      defaultIntegration: new apigateway.LambdaIntegration(apiLambda)
+    });
+
+    // Outputs
+    new cdk.CfnOutput(this, 'BucketName', { value: bucket.bucketName });
+    new cdk.CfnOutput(this, 'DistributionUrl', { value: distribution.distributionDomainName });
+    new cdk.CfnOutput(this, 'ApiUrl', { value: api.url });
+    new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
+    new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
+    new cdk.CfnOutput(this, 'CertificationsTableName', { value: certTable.tableName });
+    new cdk.CfnOutput(this, 'UsersTableName', { value: userTable.tableName });
+  }
+}
