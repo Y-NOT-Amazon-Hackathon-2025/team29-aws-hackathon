@@ -1,0 +1,17 @@
+{
+  "name": "certification-infrastructure",
+  "version": "0.1.0",
+  "bin": {
+    "infrastructure": "bin/app.js"
+  },
+  "scripts": {
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.105.0",
+    "constructs": "^10.0.0"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.105.0"
+  }
+}
