@@ -12,50 +12,107 @@ const taskHandler = require('./handlers/tasks');
 const plannerHandler = require('./handlers/planner');
 
 exports.handler = async (event) => {
-  const { httpMethod, path, pathParameters, body, headers } = event;
+  console.log('Event:', JSON.stringify(event, null, 2));
+  
+  const { httpMethod, path, pathParameters = {}, body, headers = {} } = event;
   const userId = await getUserId(headers);
   
   try {
+    // Extract path segments
+    const pathSegments = path.split('/').filter(segment => segment);
+    console.log('Path segments:', pathSegments);
+    
     // Auth routes
-    if (path === '/login' && httpMethod === 'POST') return authHandler.login(JSON.parse(body));
-    if (path === '/register' && httpMethod === 'POST') return authHandler.register(JSON.parse(body));
+    if (path === '/login' && httpMethod === 'POST') {
+      return await authHandler.login(JSON.parse(body || '{}'));
+    }
+    if (path === '/register' && httpMethod === 'POST') {
+      return await authHandler.register(JSON.parse(body || '{}'));
+    }
     
     // Certificate routes
-    if (path === '/certificates' && httpMethod === 'GET') return certificateHandler.list();
-    if (path.match(/^\/certificates\/[^\/]+$/) && httpMethod === 'GET') return certificateHandler.getById(pathParameters.id);
-    if (path.match(/^\/certificates\/[^\/]+\/save$/) && httpMethod === 'POST') return certificateHandler.save(pathParameters.id, userId);
-    if (path.match(/^\/certificates\/[^\/]+\/save$/) && httpMethod === 'DELETE') return certificateHandler.unsave(pathParameters.id, userId);
-    if (path === '/certificates/saved' && httpMethod === 'GET') return certificateHandler.getSaved(userId);
+    if (path === '/certificates' && httpMethod === 'GET') {
+      return await certificateHandler.list();
+    }
+    if (pathSegments[0] === 'certificates' && pathSegments.length === 2 && httpMethod === 'GET') {
+      return await certificateHandler.getById(pathSegments[1]);
+    }
+    if (pathSegments[0] === 'certificates' && pathSegments[2] === 'save' && httpMethod === 'POST') {
+      return await certificateHandler.save(pathSegments[1], userId);
+    }
+    if (pathSegments[0] === 'certificates' && pathSegments[2] === 'save' && httpMethod === 'DELETE') {
+      return await certificateHandler.unsave(pathSegments[1], userId);
+    }
+    if (path === '/certificates/saved' && httpMethod === 'GET') {
+      return await certificateHandler.getSaved(userId);
+    }
     
     // Curriculum routes
-    if (path === '/curriculums' && httpMethod === 'GET') return curriculumHandler.list(userId);
-    if (path === '/curriculums' && httpMethod === 'POST') return curriculumHandler.create(JSON.parse(body), userId);
-    if (path.match(/^\/curriculums\/[^\/]+$/) && httpMethod === 'GET') return curriculumHandler.getById(pathParameters.id, userId);
-    if (path.match(/^\/curriculums\/[^\/]+$/) && httpMethod === 'PATCH') return curriculumHandler.update(pathParameters.id, JSON.parse(body), userId);
-    if (path.match(/^\/curriculums\/[^\/]+$/) && httpMethod === 'DELETE') return curriculumHandler.delete(pathParameters.id, userId);
+    if (path === '/curriculums' && httpMethod === 'GET') {
+      return await curriculumHandler.list(userId);
+    }
+    if (path === '/curriculums' && httpMethod === 'POST') {
+      return await curriculumHandler.create(JSON.parse(body || '{}'), userId);
+    }
+    if (pathSegments[0] === 'curriculums' && pathSegments.length === 2 && httpMethod === 'GET') {
+      return await curriculumHandler.getById(pathSegments[1], userId);
+    }
+    if (pathSegments[0] === 'curriculums' && pathSegments.length === 2 && httpMethod === 'PATCH') {
+      return await curriculumHandler.update(pathSegments[1], JSON.parse(body || '{}'), userId);
+    }
+    if (pathSegments[0] === 'curriculums' && pathSegments.length === 2 && httpMethod === 'DELETE') {
+      return await curriculumHandler.delete(pathSegments[1], userId);
+    }
     
     // Task routes
-    if (path.match(/^\/curriculums\/[^\/]+\/tasks$/) && httpMethod === 'POST') return taskHandler.create(pathParameters.id, JSON.parse(body), userId);
-    if (path.match(/^\/curriculums\/[^\/]+\/tasks$/) && httpMethod === 'GET') return taskHandler.list(pathParameters.id, userId);
-    if (path.match(/^\/curriculums\/[^\/]+\/tasks\/[^\/]+$/) && httpMethod === 'GET') return taskHandler.getById(pathParameters.id, pathParameters.taskId, userId);
-    if (path.match(/^\/curriculums\/[^\/]+\/tasks\/[^\/]+$/) && httpMethod === 'PATCH') return taskHandler.update(pathParameters.id, pathParameters.taskId, JSON.parse(body), userId);
-    if (path.match(/^\/curriculums\/[^\/]+\/tasks\/[^\/]+$/) && httpMethod === 'DELETE') return taskHandler.delete(pathParameters.id, pathParameters.taskId, userId);
+    if (pathSegments[0] === 'curriculums' && pathSegments[2] === 'tasks' && pathSegments.length === 3 && httpMethod === 'POST') {
+      return await taskHandler.create(pathSegments[1], JSON.parse(body || '{}'), userId);
+    }
+    if (pathSegments[0] === 'curriculums' && pathSegments[2] === 'tasks' && pathSegments.length === 3 && httpMethod === 'GET') {
+      return await taskHandler.list(pathSegments[1], userId);
+    }
+    if (pathSegments[0] === 'curriculums' && pathSegments[2] === 'tasks' && pathSegments.length === 4 && httpMethod === 'GET') {
+      return await taskHandler.getById(pathSegments[1], pathSegments[3], userId);
+    }
+    if (pathSegments[0] === 'curriculums' && pathSegments[2] === 'tasks' && pathSegments.length === 4 && httpMethod === 'PATCH') {
+      return await taskHandler.update(pathSegments[1], pathSegments[3], JSON.parse(body || '{}'), userId);
+    }
+    if (pathSegments[0] === 'curriculums' && pathSegments[2] === 'tasks' && pathSegments.length === 4 && httpMethod === 'DELETE') {
+      return await taskHandler.delete(pathSegments[1], pathSegments[3], userId);
+    }
     
     // Progress route
-    if (path.match(/^\/curriculums\/[^\/]+\/progress$/) && httpMethod === 'GET') return curriculumHandler.getProgress(pathParameters.id, userId);
+    if (pathSegments[0] === 'curriculums' && pathSegments[2] === 'progress' && httpMethod === 'GET') {
+      return await curriculumHandler.getProgress(pathSegments[1], userId);
+    }
     
     // Planner routes
-    if (path === '/planner/generate' && httpMethod === 'POST') return plannerHandler.generate(JSON.parse(body), userId);
-    if (path.match(/^\/planner\/[^\/]+\/apply$/) && httpMethod === 'POST') return plannerHandler.apply(pathParameters.curriculumId, JSON.parse(body), userId);
+    if (path === '/planner/generate' && httpMethod === 'POST') {
+      return await plannerHandler.generate(JSON.parse(body || '{}'), userId);
+    }
+    if (pathSegments[0] === 'planner' && pathSegments[2] === 'apply' && httpMethod === 'POST') {
+      return await plannerHandler.apply(pathSegments[1], JSON.parse(body || '{}'), userId);
+    }
     
-    return { statusCode: 404, body: JSON.stringify({ error: 'Not found' }) };
+    console.log('No matching route found for:', httpMethod, path);
+    return { 
+      statusCode: 404, 
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Not found', path, method: httpMethod }) 
+    };
   } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    console.error('Handler error:', error);
+    return { 
+      statusCode: 500, 
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: error.message }) 
+    };
   }
 };
 
 async function getUserId(headers) {
-  const token = headers.Authorization?.replace('Bearer ', '');
+  const authHeader = headers.Authorization || headers.authorization;
+  const token = authHeader?.replace('Bearer ', '');
   if (!token) return null;
   
   try {
@@ -66,7 +123,8 @@ async function getUserId(headers) {
     });
     const payload = await verifier.verify(token);
     return payload.sub;
-  } catch {
+  } catch (error) {
+    console.error('Token verification failed:', error);
     return null;
   }
 }
