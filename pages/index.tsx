@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Header from '../components/Header';
+import RecommendedCertificates from '../components/RecommendedCertificates';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -21,82 +23,10 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      {/* 헤더 */}
-      <header style={{
-        backgroundColor: 'white',
-        padding: '20px 0',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        marginBottom: '40px'
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ margin: 0, color: '#007bff' }}>🎓 자격증 통합 플랫폼</h1>
-          
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <button
-                onClick={() => router.push('/my')}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                마이페이지
-              </button>
-              <span>안녕하세요, {user.name}님!</span>
-              <button
-                onClick={logout}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                로그아웃
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => router.push('/login')}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                로그인
-              </button>
-              <button
-                onClick={() => router.push('/register')}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                회원가입
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <Header user={user} onLogout={logout} />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-        {/* 메인 소개 */}
-        <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '60px', marginTop: '60px' }}>
           <h2 style={{ fontSize: '2.5rem', marginBottom: '20px', color: '#333' }}>
             AI가 만드는 맞춤형 자격증 학습 플랜
           </h2>
@@ -105,7 +35,6 @@ export default function Home() {
           </p>
         </div>
 
-        {/* 주요 기능 카드 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', marginBottom: '60px' }}>
           <div
             onClick={() => router.push('/certificates')}
@@ -148,59 +77,10 @@ export default function Home() {
               AI가 분석한 맞춤형 학습 계획을 받아보세요. 개인의 수준과 목표에 맞는 주차별 학습 로드맵을 제공합니다.
             </p>
           </div>
-
-          <div
-            onClick={() => user ? router.push('/calendar') : router.push('/login')}
-            style={{
-              backgroundColor: 'white',
-              padding: '40px',
-              borderRadius: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              cursor: 'pointer',
-              transition: 'transform 0.2s',
-              textAlign: 'center'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <div style={{ fontSize: '3rem', marginBottom: '20px' }}>📅</div>
-            <h3 style={{ marginBottom: '15px', color: '#28a745' }}>시험 일정</h3>
-            <p style={{ color: '#666', lineHeight: '1.6' }}>
-              시험 일정을 한눈에 확인하고 자동 알림을 설정하세요. D-7, D-1 알림으로 시험을 놓치지 마세요.
-            </p>
-          </div>
         </div>
 
-        {/* 통계 섹션 */}
-        <div style={{
-          backgroundColor: 'white',
-          padding: '40px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          marginBottom: '60px'
-        }}>
-          <h3 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>플랫폼 현황</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '30px', textAlign: 'center' }}>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#007bff', marginBottom: '10px' }}>50+</div>
-              <div style={{ color: '#666' }}>등록된 자격증</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#28a745', marginBottom: '10px' }}>1,000+</div>
-              <div style={{ color: '#666' }}>생성된 커리큘럼</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ffc107', marginBottom: '10px' }}>95%</div>
-              <div style={{ color: '#666' }}>사용자 만족도</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#6f42c1', marginBottom: '10px' }}>24/7</div>
-              <div style={{ color: '#666' }}>AI 지원</div>
-            </div>
-          </div>
-        </div>
+        {user && <RecommendedCertificates />}
 
-        {/* CTA 섹션 */}
         {!user && (
           <div style={{
             backgroundColor: '#007bff',
@@ -233,7 +113,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* 푸터 */}
       <footer style={{
         backgroundColor: '#333',
         color: 'white',
@@ -242,7 +121,7 @@ export default function Home() {
         textAlign: 'center'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <p>&copy; 2024 자격증 통합 플랫폼. AWS 해커톤 프로젝트.</p>
+          <p>&copy; 2024 Y-NOT?. AWS 해커톤 프로젝트.</p>
         </div>
       </footer>
     </div>

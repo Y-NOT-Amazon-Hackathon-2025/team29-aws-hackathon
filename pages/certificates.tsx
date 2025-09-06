@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
+import Header from '../components/Header';
+import RecommendedCertificates from '../components/RecommendedCertificates';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -24,6 +26,7 @@ interface Certificate {
 
 export default function Certificates() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [filteredCertificates, setFilteredCertificates] = useState<Certificate[]>([]);
   const [search, setSearch] = useState('');
@@ -31,6 +34,20 @@ export default function Certificates() {
   const [loading, setLoading] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    setUser(null);
+    router.push('/');
+  };
 
   const fetchCertificates = async () => {
     setLoading(true);
@@ -219,24 +236,7 @@ export default function Certificates() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      {/* Header */}
-      <header style={{
-        backgroundColor: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        padding: '1rem 2rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>
-          Y-NOT?
-        </div>
-        <nav style={{ display: 'flex', gap: '2rem' }}>
-          <a href="/certificates" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>About Qualification</a>
-          <a href="/curriculums" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My Qualiculum</a>
-          <a href="/my" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My page</a>
-        </nav>
-      </header>
+      <Header user={user} onLogout={logout} />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
         <h1 style={{ fontSize: '32px', fontWeight: '600', color: '#2c3e50', marginBottom: '2rem' }}>
@@ -416,6 +416,8 @@ export default function Certificates() {
             ))}
           </div>
         )}
+
+        {user && <RecommendedCertificates />}
 
         {/* 자격증 상세 모달 */}
         {showModal && selectedCert && (

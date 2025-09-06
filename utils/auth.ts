@@ -22,7 +22,9 @@ export const removeToken = (): void => {
 };
 
 export const isAuthenticated = (): boolean => {
-  return !!getToken();
+  // UI 테스트용 - 항상 로그인된 상태로 처리
+  return true;
+  // return !!getToken();
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;

@@ -1,253 +1,391 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import axios from 'axios';
+import Header from '../components/Header';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-interface SavedCertificate {
-  certId: string;
-  certName: string;
-  category: string;
-  difficulty: string;
-  description: string;
-  examDate: string;
-  cost: number;
-  createdAt: string;
+interface UserProfile {
+  name: string;
+  email: string;
+  birthDate: string;
+  gender: string;
+  major: string;
+  interests: string;
 }
 
 export default function MyPage() {
-  const [savedCertificates, setSavedCertificates] = useState<SavedCertificate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [step, setStep] = useState<'verify' | 'edit'>('verify');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>({
+    name: '',
+    email: '',
+    birthDate: '',
+    gender: '',
+    major: '',
+    interests: ''
+  });
   const router = useRouter();
 
-  const fetchSavedCertificates = async () => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      // 모든 자격증 정보를 먼저 가져오기
-      const allCertsResponse = await axios.get(`${API_URL.replace(/\/$/, '')}/certificates`);
-      const allCerts = Array.isArray(allCertsResponse.data) ? allCertsResponse.data : [];
-      
-      // localStorage에서 저장된 자격증 ID들 가져오기
-      const savedCertIds = JSON.parse(localStorage.getItem('savedCertificates') || '["ceh", "ccna", "aws-solutions-architect-associate"]');
-      
-      // 저장된 자격증과 매칭
-      const savedData = savedCertIds.map(certId => {
-        const certData = allCerts.find(cert => 
-          (cert.id?.S || cert.id) === certId
-        );
-        
-        if (certData) {
-          return {
-            certId,
-            certName: certData.name?.S || certData.name || certId,
-            category: certData.category?.S || certData.category || '',
-            difficulty: certData.difficulty?.S || certData.difficulty || '',
-            description: certData.description?.S || certData.description || '',
-            examDate: certData.examDate?.S || certData.examDate || '',
-            cost: parseInt(certData.cost?.N || certData.cost || '0'),
-            createdAt: new Date().toISOString()
-          };
-        } else {
-          return {
-            certId,
-            certName: certId,
-            category: 'Unknown',
-            difficulty: 'Unknown',
-            description: '자격증 정보를 불러올 수 없습니다.',
-            examDate: '',
-            cost: 0,
-            createdAt: new Date().toISOString()
-          };
-        }
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      setProfile({
+        name: parsedUser.name || '',
+        email: parsedUser.email || '',
+        birthDate: parsedUser.birthDate || '',
+        gender: parsedUser.gender || '',
+        major: parsedUser.major || '',
+        interests: parsedUser.interests || ''
       });
+    } else {
+      router.push('/login');
+    }
+  }, [router]);
 
-      setSavedCertificates(savedData);
+  const logout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    setUser(null);
+    router.push('/');
+  };
+
+  const handlePasswordVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Mock password verification - replace with actual API call
+      if (password === 'password123') {
+        setStep('edit');
+      } else {
+        setError('비밀번호가 올바르지 않습니다.');
+      }
     } catch (error) {
-      console.error('즐겨찾기 조회 실패:', error);
+      setError('비밀번호 확인 중 오류가 발생했습니다.');
     }
     setLoading(false);
   };
 
-  const removeSavedCertificate = async (certId: string) => {
-    if (!confirm('즐겨찾기에서 제거하시겠습니까?')) return;
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
     try {
-      // localStorage에서 제거
-      const savedCerts = JSON.parse(localStorage.getItem('savedCertificates') || '[]');
-      const updatedCerts = savedCerts.filter(id => id !== certId);
-      localStorage.setItem('savedCertificates', JSON.stringify(updatedCerts));
-      
-      // 화면에서 즉시 제거
-      setSavedCertificates(prev => prev.filter(cert => cert.certId !== certId));
-      
-      alert('즐겨찾기에서 제거되었습니다.');
+      // Mock profile update - replace with actual API call
+      const updatedUser = { ...user, ...profile };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      alert('프로필이 성공적으로 업데이트되었습니다!');
     } catch (error) {
-      alert('제거에 실패했습니다.');
+      setError('프로필 업데이트 중 오류가 발생했습니다.');
     }
+    setLoading(false);
   };
 
-  const createCurriculumForCert = (certId: string, certName: string) => {
-    router.push(`/curriculums?cert=${certId}&name=${encodeURIComponent(certName)}`);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({ ...prev, [name]: value }));
   };
 
-  useEffect(() => {
-    fetchSavedCertificates();
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '50vh' 
-      }}>
-        <div>로딩 중...</div>
-      </div>
-    );
+  if (!user) {
+    return <div>Loading...</div>;
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-      <h1>👤 마이페이지</h1>
-      
-      <div style={{ marginBottom: '40px' }}>
-        <h2>⭐ 즐겨찾기한 자격증</h2>
-        <p style={{ color: '#666', marginBottom: '20px' }}>
-          관심 있는 자격증들을 관리하고 커리큘럼을 생성하세요
-        </p>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+      <Header user={user} onLogout={logout} />
 
-        {savedCertificates.length === 0 ? (
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: '600', color: '#2c3e50', marginBottom: '2rem' }}>
+          👤 마이페이지
+        </h1>
+
+        {step === 'verify' ? (
           <div style={{
-            textAlign: 'center',
-            padding: '60px 20px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '12px'
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            padding: '3rem',
+            maxWidth: '500px',
+            margin: '0 auto'
           }}>
-            <div style={{ fontSize: '3rem', marginBottom: '20px' }}>📋</div>
-            <h3>즐겨찾기한 자격증이 없습니다</h3>
-            <p style={{ color: '#666', marginBottom: '30px' }}>
-              자격증 검색 페이지에서 관심 있는 자격증을 즐겨찾기에 추가해보세요!
+            <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: '#333' }}>
+              본인 확인
+            </h2>
+            <p style={{ textAlign: 'center', color: '#666', marginBottom: '2rem' }}>
+              개인정보 수정을 위해 비밀번호를 입력해주세요.
             </p>
-            <button
-              onClick={() => router.push('/certificates')}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              자격증 검색하기
-            </button>
-          </div>
-        ) : (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
-            gap: '20px' 
-          }}>
-            {savedCertificates.map((cert) => (
-              <div
-                key={cert.certId}
+
+            <form onSubmit={handlePasswordVerify}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#495057', fontWeight: '500' }}>
+                  비밀번호
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호를 입력하세요"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #e9ecef',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {error && (
+                <div style={{
+                  color: '#dc3545',
+                  marginBottom: '1.5rem',
+                  padding: '12px',
+                  backgroundColor: '#f8d7da',
+                  borderRadius: '8px',
+                  fontSize: '14px'
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
                 style={{
-                  border: '1px solid #ddd',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  backgroundColor: 'white',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: loading ? '#6c757d' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: loading ? 'not-allowed' : 'pointer'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                  <h3 style={{ margin: 0, color: '#333' }}>{cert.certName}</h3>
-                  <span style={{
-                    backgroundColor: '#ffc107',
-                    color: 'white',
-                    padding: '4px 8px',
-                    borderRadius: '12px',
-                    fontSize: '12px'
-                  }}>
-                    ⭐ 즐겨찾기
-                  </span>
-                </div>
-                
-                <div style={{ marginBottom: '15px' }}>
-                  <span style={{ 
-                    backgroundColor: '#e9ecef', 
-                    padding: '4px 8px', 
-                    borderRadius: '4px',
-                    marginRight: '10px',
-                    fontSize: '14px'
-                  }}>
-                    {cert.category}
-                  </span>
-                  <span style={{ 
-                    backgroundColor: cert.difficulty === 'Advanced' ? '#dc3545' : 
-                                 cert.difficulty === 'Intermediate' ? '#ffc107' : '#28a745',
-                    color: 'white',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '14px'
-                  }}>
-                    {cert.difficulty}
-                  </span>
-                </div>
+                {loading ? '확인 중...' : '확인'}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            padding: '3rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <h2 style={{ margin: 0, color: '#333' }}>개인정보 수정</h2>
+              <button
+                onClick={() => setStep('verify')}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                뒤로가기
+              </button>
+            </div>
 
-                <p style={{ 
-                  marginBottom: '15px', 
-                  fontSize: '14px', 
-                  lineHeight: '1.4',
-                  color: '#666'
-                }}>
-                  {cert.description}
-                </p>
-
-                <div style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
-                  <div>📅 시험일: {cert.examDate}</div>
-                  <div>💰 비용: ${cert.cost}</div>
-                  <div>📌 추가일: {new Date(cert.createdAt).toLocaleDateString()}</div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    onClick={() => createCurriculumForCert(cert.certId, cert.certName)}
+            <form onSubmit={handleProfileUpdate}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: '#495057', fontWeight: '500' }}>
+                    이름
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={profile.name}
+                    onChange={handleInputChange}
+                    required
                     style={{
-                      flex: 1,
-                      padding: '10px',
-                      backgroundColor: '#28a745',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: '#495057', fontWeight: '500' }}>
+                    이메일
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={profile.email}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: '#495057', fontWeight: '500' }}>
+                    생년월일
+                  </label>
+                  <input
+                    type="date"
+                    name="birthDate"
+                    value={profile.birthDate}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: '#495057', fontWeight: '500' }}>
+                    성별
+                  </label>
+                  <select
+                    name="gender"
+                    value={profile.gender}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
                     }}
                   >
-                    📚 커리큘럼 생성
-                  </button>
-                  <button
-                    onClick={() => removeSavedCertificate(cert.certId)}
+                    <option value="">선택하세요</option>
+                    <option value="male">남성</option>
+                    <option value="female">여성</option>
+                    <option value="other">기타</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: '#495057', fontWeight: '500' }}>
+                    전공
+                  </label>
+                  <input
+                    type="text"
+                    name="major"
+                    value={profile.major}
+                    onChange={handleInputChange}
+                    required
                     style={{
-                      padding: '10px',
-                      backgroundColor: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
                     }}
-                  >
-                    🗑️
-                  </button>
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: '#495057', fontWeight: '500' }}>
+                    관심사
+                  </label>
+                  <input
+                    type="text"
+                    name="interests"
+                    value={profile.interests}
+                    onChange={handleInputChange}
+                    placeholder="예: 클라우드, 데이터분석, 보안"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
                 </div>
               </div>
-            ))}
+
+              {error && (
+                <div style={{
+                  color: '#dc3545',
+                  marginTop: '1.5rem',
+                  padding: '12px',
+                  backgroundColor: '#f8d7da',
+                  borderRadius: '8px',
+                  fontSize: '14px'
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setStep('verify')}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '16px'
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: loading ? '#6c757d' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '600'
+                  }}
+                >
+                  {loading ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>

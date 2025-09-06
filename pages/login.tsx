@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import api, { setToken, isAuthenticated } from '../utils/auth';
+import Header from '../components/Header';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,7 +12,6 @@ export default function Login() {
   const router = useRouter();
 
   useEffect(() => {
-    // 이미 로그인된 경우 홈으로 리다이렉트
     if (isAuthenticated()) {
       router.push('/');
     }
@@ -36,7 +36,6 @@ export default function Login() {
         setToken(response.data.accessToken);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         
-        // 로그인 상태 유지 옵션 처리
         if (rememberMe) {
           localStorage.setItem('rememberMe', 'true');
         }
@@ -55,24 +54,7 @@ export default function Login() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      {/* Header */}
-      <header style={{
-        backgroundColor: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        padding: '1rem 2rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>
-          Y-NOT?
-        </div>
-        <nav style={{ display: 'flex', gap: '2rem' }}>
-          <a href="/certificates" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>About Qualification</a>
-          <a href="/curriculums" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My Qualiculum</a>
-          <a href="/my" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My page</a>
-        </nav>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <div style={{ 
@@ -118,7 +100,8 @@ export default function Login() {
                   borderRadius: '8px',
                   fontSize: '16px',
                   transition: 'border-color 0.3s ease',
-                  outline: 'none'
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#007bff'}
                 onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -142,7 +125,8 @@ export default function Login() {
                   borderRadius: '8px',
                   fontSize: '16px',
                   transition: 'border-color 0.3s ease',
-                  outline: 'none'
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#007bff'}
                 onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -206,16 +190,6 @@ export default function Login() {
               fontWeight: '500'
             }}>
               회원가입
-            </a>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-            <a href="#" style={{ 
-              color: '#6c757d', 
-              textDecoration: 'none',
-              fontSize: '14px'
-            }}>
-              아이디 · 비밀번호 찾기
             </a>
           </div>
         </div>
