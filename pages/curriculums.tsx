@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import api, { isAuthenticated } from '../utils/auth';
+import Header from '../components/Header';
 
 interface Curriculum {
   id: string;
@@ -42,11 +43,26 @@ interface MyCertificate {
 
 export default function Curriculums() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState<'curriculum' | 'mycerts'>('curriculum');
   const [curriculumTab, setCurriculumTab] = useState<'saved' | 'inprogress' | 'completed'>('saved');
   
   // 커리큘럼 관련 상태
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    setUser(null);
+    router.push('/');
+  };
   const [savedCertificates, setSavedCertificates] = useState<Certificate[]>([]);
   const [inProgressCertificates, setInProgressCertificates] = useState<Certificate[]>([]);
   const [completedCertificates, setCompletedCertificates] = useState<Certificate[]>([]);
@@ -166,24 +182,7 @@ export default function Curriculums() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      {/* Header - 자격증 검색 페이지와 동일 */}
-      <header style={{
-        backgroundColor: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        padding: '1rem 2rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>
-          Y-NOT?
-        </div>
-        <nav style={{ display: 'flex', gap: '2rem' }}>
-          <a href="/certificates" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>About Qualification</a>
-          <a href="/curriculums" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>My Qualiculum</a>
-          <a href="/my" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My page</a>
-        </nav>
-      </header>
+      <Header user={user} onLogout={logout} />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
         <h1 style={{ fontSize: '32px', fontWeight: '600', color: '#2c3e50', marginBottom: '2rem' }}>

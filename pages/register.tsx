@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
+import Header from '../components/Header';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -530,7 +531,9 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -554,7 +557,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -581,7 +585,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -641,7 +646,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -665,7 +671,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -688,7 +695,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -716,7 +724,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -739,7 +748,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
@@ -763,7 +773,8 @@ export default function Register() {
                     borderRadius: '8px',
                     fontSize: '16px',
                     transition: 'border-color 0.3s ease',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#007bff'}
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}

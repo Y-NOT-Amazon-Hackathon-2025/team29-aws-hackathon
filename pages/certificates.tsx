@@ -26,6 +26,7 @@ interface Certificate {
 
 export default function Certificates() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [recommendedCerts, setRecommendedCerts] = useState<Certificate[]>([]);
   const [filteredCertificates, setFilteredCertificates] = useState<Certificate[]>([]);
@@ -554,6 +555,8 @@ export default function Certificates() {
             ))}
           </div>
         )}
+
+        {user && <RecommendedCertificates />}
 
         {/* 자격증 상세 모달 */}
         {showModal && selectedCert && (
