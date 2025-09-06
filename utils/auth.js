@@ -1,3 +1,14 @@
+// JWT 토큰 디코딩 함수
+const decodeToken = (token) => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000; // 밀리초로 변환
+  } catch (error) {
+    console.error('Token decode error:', error);
+    return null;
+  }
+};
+
 // 토큰 관리 유틸리티
 export const getToken = () => {
   if (typeof window !== 'undefined') {
@@ -9,18 +20,51 @@ export const getToken = () => {
 export const setToken = (token) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('accessToken', token);
+    
+    // 토큰 만료 시간 저장
+    const expiryTime = decodeToken(token);
+    if (expiryTime) {
+      localStorage.setItem('tokenExpiry', expiryTime.toString());
+    }
+  }
+};
+
+export const setTokens = (accessToken, refreshToken) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+
+    // 토큰 만료 시간 저장
+    const expiryTime = decodeToken(accessToken);
+    if (expiryTime) {
+      localStorage.setItem('tokenExpiry', expiryTime.toString());
+    }
   }
 };
 
 export const removeToken = () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpiry');
     localStorage.removeItem('user');
   }
 };
 
+// 토큰 만료 여부 확인
+export const isTokenExpired = () => {
+  if (typeof window !== 'undefined') {
+    const expiryTime = localStorage.getItem('tokenExpiry');
+    if (!expiryTime) return true;
+    
+    return Date.now() >= parseInt(expiryTime);
+  }
+  return true;
+};
+
 export const isAuthenticated = () => {
-  return !!getToken();
+  const token = getToken();
+  return !!token && !isTokenExpired();
 };
 
 // Axios 설정
@@ -38,6 +82,17 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = getToken();
+    
+    // 토큰 만료 사전 체크
+    if (token && isTokenExpired()) {
+      console.log('Token expired, removing and redirecting to login');
+      removeToken();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      return Promise.reject(new Error('Token expired'));
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -39,6 +39,7 @@
   "type#id": "profile",
   "email": "user@example.com",
   "name": "홍길동",
+  "interests": ["데이터분석", "클라우드", "보안", "AI/ML", "웹개발"],
   "createdAt": "2024-09-05T07:00:00Z"
 }
 ```
@@ -105,14 +106,100 @@
 }
 ```
 
-## GSI (Global Secondary Index)
+## 3. LearningResourcesTable
+**Partition Key**: `certId` (String)  
+**Sort Key**: `resourceId` (String)
 
-### GSI1: category-difficulty-index
-- **Partition Key**: `category`
-- **Sort Key**: `difficulty`
-- 용도: 카테고리별 자격증 검색
+### 교재 정보
+```json
+{
+  "certId": "adsp",
+  "resourceId": "textbook#adsp-guide-2024",
+  "type": "textbook",
+  "title": "ADsP 데이터분석 준전문가 완벽가이드 2024",
+  "author": "김데이터",
+  "publisher": "데이터출판사",
+  "isbn": "979-11-123456-78-9",
+  "price": 28000,
+  "rating": 4.5,
+  "reviewCount": 1250,
+  "purchaseLinks": {
+    "yes24": "https://www.yes24.com/...",
+    "kyobo": "https://www.kyobobook.co.kr/...",
+    "aladin": "https://www.aladin.co.kr/..."
+  },
+  "chapters": [
+    "1장. 데이터 이해",
+    "2장. 데이터 분석 기획",
+    "3장. 데이터 분석"
+  ],
+  "difficulty": "초급",
+  "recommendedWeeks": [1, 2, 3, 4]
+}
+```
 
-### GSI2: user-status-index  
-- **Partition Key**: `userId`
-- **Sort Key**: `status`
-- 용도: 사용자별 활성 커리큘럼 조회
+### 동영상 강의 정보
+```json
+{
+  "certId": "adsp",
+  "resourceId": "video#fastcampus-adsp",
+  "type": "video",
+  "title": "패스트캠퍼스 ADsP 완주반",
+  "instructor": "박강사",
+  "platform": "패스트캠퍼스",
+  "duration": "20시간",
+  "price": 150000,
+  "discountPrice": 99000,
+  "rating": 4.8,
+  "studentCount": 3500,
+  "videoUrl": "https://fastcampus.co.kr/...",
+  "previewUrl": "https://youtube.com/watch?v=...",
+  "curriculum": [
+    "데이터 이해 기초 (3시간)",
+    "통계 분석 실습 (5시간)",
+    "R/Python 활용 (8시간)",
+    "모의고사 해설 (4시간)"
+  ],
+  "difficulty": "초급",
+  "recommendedWeeks": [1, 2, 3, 4, 5]
+}
+```
+
+### 온라인 문제집
+```json
+{
+  "certId": "adsp",
+  "resourceId": "quiz#adsp-bank-2024",
+  "type": "quiz",
+  "title": "ADsP 기출문제 1000제",
+  "provider": "시나공",
+  "questionCount": 1000,
+  "price": 19900,
+  "accessUrl": "https://sinagong.co.kr/...",
+  "features": [
+    "최신 기출문제 반영",
+    "상세 해설 제공",
+    "오답노트 기능",
+    "모의고사 10회"
+  ],
+  "difficulty": "전체",
+  "recommendedWeeks": [3, 4, 5, 6]
+}
+```
+
+### 무료 자료
+```json
+{
+  "certId": "adsp",
+  "resourceId": "free#kdata-guide",
+  "type": "documentation",
+  "title": "한국데이터산업진흥원 공식 가이드",
+  "provider": "한국데이터산업진흥원",
+  "price": 0,
+  "accessUrl": "https://www.kdata.or.kr/...",
+  "downloadUrl": "https://www.kdata.or.kr/.../guide.pdf",
+  "description": "공식 출제기관에서 제공하는 시험 가이드",
+  "fileSize": "2.5MB",
+  "lastUpdated": "2024-08-01"
+}
+```

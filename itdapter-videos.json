@@ -1,0 +1,82 @@
+[
+  {
+    "playlistId": "PLWtr7MRpQi5Dt_b04IqPg595cOoESSO9K",
+    "title": "경영정보시각화능력",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5Dt_b04IqPg595cOoESSO9K",
+    "certifications": ["경영정보시각화능력"],
+    "category": "데이터분석",
+    "description": "경영정보시각화능력 자격증 대비 강의"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5ByM_crHFoxI3c4eWabQCHH",
+    "title": "빅데이터분석기사(실기)",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5ByM_crHFoxI3c4eWabQCHH",
+    "certifications": ["빅데이터분석기사"],
+    "category": "데이터분석",
+    "description": "빅데이터분석기사 실기 대비 강의"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5AxBOD80tko40Cpeo9aH1lK",
+    "title": "데이터베이스 개론 특강",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5AxBOD80tko40Cpeo9aH1lK",
+    "certifications": ["sqld", "adsp", "빅데이터분석기사"],
+    "category": "데이터분석",
+    "description": "데이터베이스 개론 특강 (진행 중)"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5BbdqJhNKXZSvPqYHT_rZkS",
+    "title": "SQLD - SQL개발자",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5BbdqJhNKXZSvPqYHT_rZkS",
+    "certifications": ["sqld"],
+    "category": "데이터분석",
+    "description": "SQLD SQL개발자 자격증 대비 강의"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5AIBRraDXU4f9yauQ3jE7ld",
+    "title": "최신IT기술동향",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5AIBRraDXU4f9yauQ3jE7ld",
+    "certifications": ["정보처리기사", "기술고시"],
+    "category": "IT일반",
+    "description": "최신 IT 기술 동향 및 트렌드"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5CnmoRTPM5K8oIkcp0bmpJ3",
+    "title": "기초 자료구조 특강",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5CnmoRTPM5K8oIkcp0bmpJ3",
+    "certifications": ["정보처리기사", "기술고시"],
+    "category": "프로그래밍",
+    "description": "기초 자료구조 알고리즘 특강"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5Dt41ZE0mT_wFIWUsTT1E7O",
+    "title": "빅데이터분석기사(필기)",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5Dt41ZE0mT_wFIWUsTT1E7O",
+    "certifications": ["빅데이터분석기사"],
+    "category": "데이터분석",
+    "description": "빅데이터분석기사 필기 대비 강의"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5CW-jFYgAsX4jZcSp77O3a5",
+    "title": "ADsP - 데이터분석준전문가",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5CW-jFYgAsX4jZcSp77O3a5",
+    "certifications": ["adsp"],
+    "category": "데이터분석",
+    "description": "ADsP 데이터분석준전문가 자격증 대비 강의"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5CAXoYNJItKuS25JObZNepd",
+    "title": "현직 기술사가 전하는 이야기",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5CAXoYNJItKuS25JObZNepd",
+    "certifications": ["기술고시"],
+    "category": "IT일반",
+    "description": "현직 기술사의 경험담 및 조언"
+  },
+  {
+    "playlistId": "PLWtr7MRpQi5ATPYo3xN21Bwwd_Ut4rY0d",
+    "title": "인공지능 특강 - 머신러닝, 딥러닝",
+    "url": "https://www.youtube.com/playlist?list=PLWtr7MRpQi5ATPYo3xN21Bwwd_Ut4rY0d",
+    "certifications": ["빅데이터분석기사", "기술고시"],
+    "category": "AI/ML",
+    "description": "인공지능, 머신러닝, 딥러닝 특강"
+  }
+]
