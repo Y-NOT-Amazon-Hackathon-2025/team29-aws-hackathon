@@ -48,7 +48,7 @@ exports.generate = async (data, userId) => {
     console.log('Generating curriculum with Bedrock...');
     
     const command = new ConverseCommand({
-      modelId: 'meta.llama3-1-8b-instruct-v1:0',
+      modelId: 'amazon.titan-text-express-v1',
       messages: [{ role: 'user', content: [{ text: prompt }] }],
       inferenceConfig: { 
         maxTokens: 4000, 

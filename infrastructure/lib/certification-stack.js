@@ -81,7 +81,7 @@ class CertificationStack extends cdk.Stack {
     // Bedrock permissions
     apiLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel'],
-      resources: ['arn:aws:bedrock:*::foundation-model/meta.llama3-1-8b-instruct-v1:0']
+      resources: ['arn:aws:bedrock:*::foundation-model/amazon.titan-text-express-v1']
     }));
 
     // Cognito permissions

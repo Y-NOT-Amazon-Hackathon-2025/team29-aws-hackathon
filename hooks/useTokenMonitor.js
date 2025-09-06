@@ -54,7 +54,10 @@ export const useTokenMonitor = () => {
     } catch (error) {
       console.error('Token refresh failed:', error);
       removeToken();
-      router.push('/login');
+      // 현재 경로가 이미 /login이 아닐 때만 리다이렉트
+      if (router.pathname !== '/login') {
+        router.replace('/login');
+      }
       return false;
     }
   };
@@ -77,7 +80,10 @@ export const useTokenMonitor = () => {
         if (getSessionElapsedHours() >= 24) {
           console.log('24 hours elapsed, logging out...');
           removeToken();
-          router.push('/login');
+          // 현재 경로가 이미 /login이 아닐 때만 리다이렉트
+          if (router.pathname !== '/login') {
+            router.replace('/login');
+          }
           return;
         }
 

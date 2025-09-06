@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
+import Header from '../../components/Header';
+import { commonStyles, storage } from '../../utils/common';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -31,16 +33,24 @@ interface Curriculum {
 export default function CurriculumDetail() {
   const router = useRouter();
   const { id } = router.query;
+  const [user, setUser] = useState(null);
   const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiCurriculum, setAiCurriculum] = useState<any>(null);
+  
+  const logout = () => {
+    storage.remove('accessToken');
+    storage.remove('user');
+    setUser(null);
+    router.replace('/');
+  };
 
   const fetchCurriculum = async () => {
     if (!id) return;
     
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = storage.get('accessToken');
       const response = await axios.get(`${API_URL}/curriculums/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -54,7 +64,7 @@ export default function CurriculumDetail() {
   const generateAICurriculum = async () => {
     setAiLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = storage.get('accessToken');
       const response = await axios.post(`${API_URL}/planner/generate`, {
         certificationId: curriculum?.certId,
         difficulty: 'intermediate',
@@ -73,7 +83,7 @@ export default function CurriculumDetail() {
 
   const applyAICurriculum = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = storage.get('accessToken');
       await axios.post(`${API_URL}/planner/${id}/apply`, {
         curriculum: aiCurriculum
       }, {
@@ -90,7 +100,7 @@ export default function CurriculumDetail() {
 
   const updateTaskStatus = async (taskId: string, status: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = storage.get('accessToken');
       await axios.patch(`${API_URL}/curriculums/${id}/tasks/${taskId}`, {
         status
       }, {
@@ -104,13 +114,28 @@ export default function CurriculumDetail() {
   };
 
   useEffect(() => {
+    const userData = storage.get('user');
+    if (userData) {
+      setUser(userData);
+    }
     fetchCurriculum();
   }, [id]);
 
-  if (!curriculum) return <div>로딩 중...</div>;
+  if (!curriculum) {
+    return (
+      <div style={commonStyles.container}>
+        <Header user={user} onLogout={logout} />
+        <div style={{ textAlign: 'center', padding: '50px' }}>
+          커리큘럼 로딩 중...
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+    <div style={commonStyles.container}>
+      <Header user={user} onLogout={logout} />
+      <div style={commonStyles.contentWrapper}>
       {/* 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
@@ -303,6 +328,7 @@ export default function CurriculumDetail() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

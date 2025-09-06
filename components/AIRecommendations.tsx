@@ -2,10 +2,21 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import api from '../utils/auth';
 
+interface AIRecommendation {
+  id?: string;
+  certId?: string;
+  name: string;
+  organization: string;
+  difficulty: string;
+  priority: number;
+  aiReason?: string;
+  studyPeriod: string;
+}
+
 export default function AIRecommendations() {
-  const [recommendations, setRecommendations] = useState([]);
+  const [recommendations, setRecommendations] = useState<AIRecommendation[]>([]);
   const [summary, setSummary] = useState('');
-  const [userInterests, setUserInterests] = useState([]);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiGenerated, setAiGenerated] = useState(false);
   const router = useRouter();
@@ -104,7 +115,7 @@ export default function AIRecommendations() {
       }}>
         {recommendations.map((cert, index) => (
           <div 
-            key={cert.id || cert.certId} 
+            key={cert.id || cert.certId || index} 
             style={{
               border: '2px solid #667eea',
               borderRadius: '16px',
@@ -115,7 +126,7 @@ export default function AIRecommendations() {
               position: 'relative',
               boxShadow: '0 4px 15px rgba(102, 126, 234, 0.1)'
             }}
-            onClick={() => router.push(`/certificates/${cert.id || cert.certId}`)}
+            onClick={() => router.push(`/certificates/${cert.id || cert.certId || ''}`)}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-8px)';
               e.currentTarget.style.boxShadow = '0 8px 30px rgba(102, 126, 234, 0.2)';
@@ -137,7 +148,7 @@ export default function AIRecommendations() {
               fontSize: '12px',
               fontWeight: 'bold'
             }}>
-              #{cert.priority} 추천
+              #{cert.priority || 1} 추천
             </div>
 
             <h3 style={{ 
@@ -229,8 +240,8 @@ export default function AIRecommendations() {
             fontWeight: 'bold',
             transition: 'background-color 0.3s ease'
           }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#5a67d8'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#667eea'}
+          onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#5a67d8'}
+          onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = '#667eea'}
         >
           🚀 AI 커리큘럼 생성하기
         </button>

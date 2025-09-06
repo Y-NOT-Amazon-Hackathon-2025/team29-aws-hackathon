@@ -5,7 +5,11 @@
     "dev": "next dev",
     "build": "next build",
     "export": "next export",
-    "deploy": "aws s3 sync out/ s3://cert-platform-frontend --delete"
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "deploy": "npm run build && npm run export && aws s3 sync out/ s3://cert-platform-frontend --delete",
+    "clean": "rm -rf .next out"
   },
   "dependencies": {
     "next": "^14.0.0",

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import axios from 'axios';
+import Header from '../components/Header';
+import { commonStyles, getDaysUntilDate, getStatusColor, storage } from '../utils/common';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -13,13 +16,15 @@ interface ExamSchedule {
 }
 
 export default function Calendar() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
   const [schedules, setSchedules] = useState<ExamSchedule[]>([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [loading, setLoading] = useState(false);
 
   const fetchSchedules = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = storage.get('accessToken');
       const response = await axios.get(`${API_URL}/certificates/saved`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -47,7 +52,7 @@ export default function Calendar() {
 
   const toggleNotification = async (certId: string, enabled: boolean) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = storage.get('accessToken');
       
       if (enabled) {
         // 알림 등록
@@ -79,50 +84,28 @@ export default function Calendar() {
     }
   };
 
-  const getDaysUntilExam = (examDate: string) => {
-    const today = new Date();
-    const exam = new Date(examDate);
-    const diffTime = exam.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
 
-  const getStatusColor = (daysUntil: number) => {
-    if (daysUntil < 0) return '#6c757d'; // 지난 시험
-    if (daysUntil <= 7) return '#dc3545'; // 임박
-    if (daysUntil <= 30) return '#ffc107'; // 한 달 이내
-    return '#28a745'; // 여유
+
+  const logout = () => {
+    storage.remove('accessToken');
+    storage.remove('user');
+    setUser(null);
+    router.replace('/');
   };
 
   useEffect(() => {
+    const userData = storage.get('user');
+    if (userData) {
+      setUser(userData);
+    }
     fetchSchedules();
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      {/* Header */}
-      <header style={{
-        backgroundColor: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        padding: '1rem 2rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <img src="/logo1.png" alt="Y-NOT Logo" style={{ height: '40px', width: 'auto' }} />
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>
-            Y-NOT?
-          </div>
-        </div>
-        <nav style={{ display: 'flex', gap: '2rem' }}>
-          <a href="/certificates" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>About Qualification</a>
-          <a href="/curriculums" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My Qualiculum</a>
-          <a href="/my" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My page</a>
-        </nav>
-      </header>
+    <div style={commonStyles.container}>
+      <Header user={user} onLogout={logout} />
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+      <div style={commonStyles.contentWrapper}>
         <h1>📅 시험 일정 캘린더</h1>
         
         {/* 필터 */}
@@ -176,7 +159,7 @@ export default function Calendar() {
             </div>
           ) : (
             schedules.map((schedule) => {
-              const daysUntil = getDaysUntilExam(schedule.examDate);
+              const daysUntil = getDaysUntilDate(schedule.examDate);
               const statusColor = getStatusColor(daysUntil);
               
               return (

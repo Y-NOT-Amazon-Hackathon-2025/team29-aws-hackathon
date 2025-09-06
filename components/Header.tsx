@@ -19,7 +19,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
     }}>
       <div 
         style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
-        onClick={() => router.push('/')}
+        onClick={() => router.replace('/')}
       >
         <img src="/logo1.png" alt="Y-NOT Logo" style={{ height: '40px', width: 'auto' }} />
       </div>

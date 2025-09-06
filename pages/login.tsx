@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import api, { setTokens, isAuthenticated } from '../utils/auth';
+import api, { setToken, isAuthenticated } from '../utils/auth';
+import Header from '../components/Header';
+import { commonStyles, storage } from '../utils/common';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,8 +13,9 @@ export default function Login() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      router.push('/');
+    // 현재 경로가 이미 /login이면 중복 네비게이션 방지
+    if (isAuthenticated() && router.pathname !== '/') {
+      router.replace('/');
     }
   }, [router]);
 
@@ -32,15 +35,15 @@ export default function Login() {
       console.log('Login response:', response.data);
 
       if (response.data.accessToken) {
-        setTokens(response.data.accessToken, response.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        setToken(response.data.accessToken);
+        storage.set('user', response.data.user);
         
         if (rememberMe) {
-          localStorage.setItem('rememberMe', 'true');
+          storage.set('rememberMe', true);
         }
         
         console.log('Login successful, redirecting...');
-        router.push('/');
+        router.replace('/');
       } else {
         throw new Error('토큰을 받지 못했습니다.');
       }
@@ -52,7 +55,7 @@ export default function Login() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+    <div style={commonStyles.container}>
       <Header />
 
       {/* Main Content */}
@@ -174,8 +177,8 @@ export default function Login() {
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'background-color 0.3s ease'
               }}
-              onMouseOver={(e) => !loading && (e.target.style.backgroundColor = '#0056b3')}
-              onMouseOut={(e) => !loading && (e.target.style.backgroundColor = '#007bff')}
+              onMouseOver={(e) => !loading && ((e.target as HTMLElement).style.backgroundColor = '#0056b3')}
+              onMouseOut={(e) => !loading && ((e.target as HTMLElement).style.backgroundColor = '#007bff')}
             >
               {loading ? '로그인 중...' : '로그인'}
             </button>

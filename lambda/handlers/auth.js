@@ -133,6 +133,75 @@ exports.refresh = async (data) => {
   }
 };
 
+// 비밀번호 확인
+exports.verifyPassword = async (data, userId) => {
+  if (!userId) return response(401, { error: 'Unauthorized' });
+  
+  const { password } = data;
+  
+  try {
+    // 사용자 정보 조회
+    const userResult = await dynamodb.send(new GetItemCommand({
+      TableName: 'UserProfileTable',
+      Key: {
+        userId: { S: userId },
+        type: { S: 'profile' }
+      }
+    }));
+
+    if (!userResult.Item) {
+      return response(404, { error: '사용자를 찾을 수 없습니다.' });
+    }
+
+    const email = userResult.Item.email?.S;
+    
+    // Cognito로 비밀번호 확인
+    const command = new InitiateAuthCommand({
+      AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: process.env.USER_POOL_CLIENT_ID,
+      AuthParameters: {
+        USERNAME: email,
+        PASSWORD: password
+      }
+    });
+    
+    await cognito.send(command);
+    return response(200, { valid: true });
+  } catch (error) {
+    console.error('Password verification error:', error);
+    return response(401, { error: '비밀번호가 올바르지 않습니다.' });
+  }
+};
+
+// 프로필 업데이트
+exports.updateProfile = async (data, userId) => {
+  if (!userId) return response(401, { error: 'Unauthorized' });
+  
+  try {
+    const { PutItemCommand } = require('@aws-sdk/client-dynamodb');
+    
+    await dynamodb.send(new PutItemCommand({
+      TableName: 'UserProfileTable',
+      Item: {
+        userId: { S: userId },
+        type: { S: 'profile' },
+        name: { S: data.name },
+        email: { S: data.email },
+        birthDate: { S: data.birthDate },
+        gender: { S: data.gender },
+        major: { S: data.major },
+        interests: { S: data.interests },
+        updatedAt: { S: new Date().toISOString() }
+      }
+    }));
+    
+    return response(200, { success: true });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return response(500, { error: '프로필 업데이트에 실패했습니다.' });
+  }
+};
+
 // 사용자 프로필 조회
 exports.getUserProfile = async (userId) => {
   try {

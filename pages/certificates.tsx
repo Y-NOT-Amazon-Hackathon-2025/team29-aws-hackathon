@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { isAuthenticated } from '../utils/auth';
+import Header from '../components/Header';
+import { commonStyles, getCertTypeStyle, storage } from '../utils/common';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || API_URL;
@@ -41,7 +43,9 @@ export default function Certificates() {
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [searchResults, setSearchResults] = useState<any>(null);
 
+  const searchCertifications = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -171,14 +175,14 @@ export default function Certificates() {
           applicationUrl: 'https://www.opic.or.kr/'
         }
       ];
-      console.log('Parsed certificates:', parsedData);
-      setCertificates(parsedData);
-      setFilteredCertificates(parsedData);
+      console.log('Parsed certificates:', mockData);
+      setCertificates(mockData);
+      setFilteredCertificates(mockData);
       
       // 로그인한 사용자의 추천 자격증 가져오기
       if (isAuthenticated()) {
         try {
-          const token = localStorage.getItem('accessToken');
+          const token = storage.get('accessToken');
           const recommendedResponse = await axios.get(`${API_URL.replace(/\/$/, '')}/certificates/recommended`, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -187,13 +191,19 @@ export default function Certificates() {
           const parsedRecommended = recommendedData.map((item: any) => ({
             id: item.id?.S || item.id || '',
             name: item.name?.S || item.name || '',
+            nameKo: item.nameKo?.S || item.nameKo || item.name?.S || item.name || '',
             category: item.category?.S || item.category || '',
-            difficulty: item.difficulty?.S || item.difficulty || '',
+            type: item.type?.S || item.type || '민간',
             description: item.description?.S || item.description || '',
-            examDate: item.examDate?.S || item.examDate || '',
-            cost: parseInt(item.cost?.N || item.cost || '0'),
-            duration: item.duration?.S || item.duration || '',
-            passingScore: item.passingScore?.S || item.passingScore || ''
+            organization: item.organization?.S || item.organization || '',
+            applicationPeriod: item.applicationPeriod?.S || item.applicationPeriod || '상시 접수',
+            examPeriod: item.examPeriod?.S || item.examPeriod || '상시 시험',
+            examFee: item.examFee?.S || item.examFee || item.cost?.N || item.cost || '0',
+            eligibility: item.eligibility?.S || item.eligibility || '제한 없음',
+            resultDate: item.resultDate?.S || item.resultDate || item.examDate?.S || item.examDate || '',
+            passingCriteria: item.passingCriteria?.S || item.passingCriteria || item.passingScore?.S || item.passingScore || '',
+            examMethod: item.examMethod?.S || item.examMethod || 'CBT',
+            applicationUrl: item.applicationUrl?.S || item.applicationUrl || ''
           }));
           
           setRecommendedCerts(parsedRecommended);
@@ -208,7 +218,7 @@ export default function Certificates() {
     setLoading(false);
   };
 
-  const filterCertificates = () => {
+  const filterCertificates = useCallback(() => {
     if (!certificates || certificates.length === 0) {
       return;
     }
@@ -223,10 +233,12 @@ export default function Certificates() {
       );
     }
     
-    if (category) {
-      filtered = filtered.filter(cert => cert.category === category);
+    if (filters.category) {
+      filtered = filtered.filter(cert => cert.category === filters.category);
     }
-  }, [activeTab]);
+    
+    setFilteredCertificates(filtered);
+  }, [certificates, search, filters]);
 
   const handleFilterChange = (filterType: string, value: string) => {
     setFilters(prev => ({ ...prev, [filterType]: value }));
@@ -243,25 +255,19 @@ export default function Certificates() {
 
   const addToMyQualiculum = async (certId: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        alert('로그인이 필요합니다.');
-        router.push('/login');
-        return;
-      }
-      
+      // useTokenMonitor에서 인증 체크를 담당하므로 중복 제거
       // My Qualiculum의 담은 자격증에 추가하는 로직
-      const savedCerts = JSON.parse(localStorage.getItem('savedCertificates') || '[]');
+      const savedCerts = storage.get('savedCertificates') || [];
       if (!savedCerts.includes(certId)) {
         savedCerts.push(certId);
-        localStorage.setItem('savedCertificates', JSON.stringify(savedCerts));
+        storage.set('savedCertificates', savedCerts);
       }
       
       alert('My Qualiculum에 담았습니다!');
       setShowModal(false);
       
       // My Qualiculum 페이지로 이동
-      router.push('/curriculums');
+      router.replace('/curriculums');
     } catch (error) {
       console.error('담기 실패:', error);
       alert('담기에 실패했습니다.');
@@ -272,18 +278,33 @@ export default function Certificates() {
     window.open(url, '_blank');
   };
 
+  const logout = () => {
+    storage.remove('accessToken');
+    storage.remove('user');
+    setUser(null);
+    router.replace('/');
+  };
+
   useEffect(() => {
+    const userData = storage.get('user');
+    if (userData) {
+      setUser(userData);
+    }
     setIsLoggedIn(isAuthenticated());
-    fetchCertificates();
+    fetchSavedCertificates();
   }, []);
 
   useEffect(() => {
     filterCertificates();
-  }, [search, category, certificates]);
+  }, [search, filters, certificates]);
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-      <h1>🔍 자격증 검색</h1>
+    <div style={commonStyles.container}>
+      <Header user={user} onLogout={logout} />
+      
+      <div style={commonStyles.contentWrapper}>
+        <h1>🔍 자격증 검색</h1>
+        <div>
 
       {/* 추천 자격증 섹션 (로그인한 사용자만) */}
       {isLoggedIn && recommendedCerts.length > 0 && (
@@ -324,7 +345,7 @@ export default function Certificates() {
                   transition: 'transform 0.2s',
                   position: 'relative'
                 }}
-                onClick={() => showDetail(cert)}
+                onClick={() => viewCertificate(cert)}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
               >
@@ -345,10 +366,10 @@ export default function Certificates() {
                   {cert.name}
                 </h4>
                 <p style={{ color: '#7f8c8d', fontSize: '0.9rem', margin: '5px 0' }}>
-                  {cert.category} | {cert.difficulty}
+                  {cert.category} | {cert.type}
                 </p>
                 <p style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                  {cert.duration}
+                  {cert.examFee}
                 </p>
               </div>
             ))}
@@ -357,32 +378,9 @@ export default function Certificates() {
       )}
 
       {/* 검색 필터 */}
+      {/* 검색 필터 */}
       <div style={{ 
         display: 'flex', 
-        gap: '20px', 
-        marginBottom: '30px',
-        padding: '20px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px'
-      }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>
-          Y-NOT?
-        </div>
-        <nav style={{ display: 'flex', gap: '2rem' }}>
-          <a href="/certificates" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>About Qualification</a>
-          <a href="/curriculums" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My Qualiculum</a>
-          <a href="/my" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My page</a>
-        </nav>
-      </header>
-
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: '600', color: '#2c3e50', marginBottom: '2rem' }}>
-          🔍 자격증 검색
-        </h1>
-
-        {/* 검색 필터 */}
-        <div style={{ 
-          display: 'flex', 
           gap: '20px', 
           marginBottom: '30px',
           padding: '20px',
@@ -409,8 +407,8 @@ export default function Certificates() {
           </div>
           
           <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            value={filters.category}
+            onChange={(e) => handleFilterChange('category', e.target.value)}
             style={{
               padding: '12px 16px',
               border: '2px solid #e9ecef',
@@ -431,7 +429,7 @@ export default function Certificates() {
           <button
             onClick={() => {
               setSearch('');
-              setCategory('');
+              setFilters({ category: '', field: '', level: '' });
             }}
             style={{
               padding: '12px 24px',
@@ -504,10 +502,7 @@ export default function Certificates() {
                     {cert.category}
                   </span>
                   <span style={{ 
-                    backgroundColor: cert.type === '국제' ? '#f3e5f5' : 
-                                   cert.type === '국가공인' ? '#e8f5e8' : '#fff3e0',
-                    color: cert.type === '국제' ? '#7b1fa2' : 
-                           cert.type === '국가공인' ? '#388e3c' : '#f57c00',
+                    ...getCertTypeStyle(cert.type),
                     padding: '6px 12px',
                     borderRadius: '20px',
                     fontSize: '14px',
@@ -532,21 +527,14 @@ export default function Certificates() {
                 </p>
                 
                 <button
-                  onClick={() => showDetail(cert)}
+                  onClick={() => viewCertificate(cert)}
                   style={{
+                    ...commonStyles.button.primary,
                     width: '100%',
-                    padding: '12px',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
                     transition: 'background-color 0.2s ease'
                   }}
-                  onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
-                  onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+                  onMouseOver={(e) => (e.target as HTMLElement).style.backgroundColor = '#0056b3'}
+                  onMouseOut={(e) => (e.target as HTMLElement).style.backgroundColor = '#007bff'}
                 >
 
                   상세보기
@@ -555,8 +543,6 @@ export default function Certificates() {
             ))}
           </div>
         )}
-
-        {user && <RecommendedCertificates />}
 
         {/* 자격증 상세 모달 */}
         {showModal && selectedCert && (
@@ -587,7 +573,6 @@ export default function Certificates() {
                   {selectedCert.nameKo}
                 </h2>
                 <button
-
                   onClick={() => setShowModal(false)}
                   style={{
                     background: 'none',
@@ -620,10 +605,7 @@ export default function Certificates() {
                   {selectedCert.category}
                 </span>
                 <span style={{ 
-                  backgroundColor: selectedCert.type === '국제' ? '#f3e5f5' : 
-                                 selectedCert.type === '국가공인' ? '#e8f5e8' : '#fff3e0',
-                  color: selectedCert.type === '국제' ? '#7b1fa2' : 
-                         selectedCert.type === '국가공인' ? '#388e3c' : '#f57c00',
+                  ...getCertTypeStyle(selectedCert.type),
                   padding: '8px 16px',
                   borderRadius: '20px',
                   fontSize: '14px',
@@ -722,12 +704,12 @@ export default function Certificates() {
                     fontWeight: '500'
                   }}
                 >
-                  신청하러 가기
                 </button>
               </div>
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

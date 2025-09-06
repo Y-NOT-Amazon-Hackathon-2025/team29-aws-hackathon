@@ -2,27 +2,28 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../components/Header';
 import RecommendedCertificates from '../components/RecommendedCertificates';
+import { commonStyles, storage } from '../utils/common';
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
+    const userData = storage.get('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      setUser(userData);
     }
   }, []);
 
   const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
+    storage.remove('accessToken');
+    storage.remove('user');
     setUser(null);
-    router.push('/');
+    router.replace('/');
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+    <div style={commonStyles.container}>
       <Header user={user} onLogout={logout} />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
@@ -37,7 +38,7 @@ export default function Home() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', marginBottom: '60px' }}>
           <div
-            onClick={() => router.push('/certificates')}
+            onClick={() => router.replace('/certificates')}
             style={{
               backgroundColor: 'white',
               padding: '40px',
@@ -58,7 +59,7 @@ export default function Home() {
           </div>
 
           <div
-            onClick={() => user ? router.push('/curriculums') : router.push('/login')}
+            onClick={() => user ? router.replace('/curriculums') : router.replace('/login')}
             style={{
               backgroundColor: 'white',
               padding: '40px',
@@ -95,7 +96,7 @@ export default function Home() {
               무료로 회원가입하고 AI 맞춤형 학습 계획을 받아보세요.
             </p>
             <button
-              onClick={() => router.push('/register')}
+              onClick={() => router.replace('/register')}
               style={{
                 padding: '15px 40px',
                 fontSize: '1.1rem',
@@ -121,7 +122,7 @@ export default function Home() {
         textAlign: 'center'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <p>&copy; 2024 Y-NOT?. AWS 해커톤 프로젝트.</p>
+          <p>&copy; 2025 Y-NOT?. AWS 해커톤 프로젝트.</p>
         </div>
       </footer>
     </div>
