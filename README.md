@@ -35,7 +35,7 @@
 
 ## 🎥 동영상 데모
 
-👉 [시연 영상 보러가기](https://youtu.be/your-demo-video-link)
+👉 [시연 영상 보러가기](https://www.youtube.com/watch?v=qlbrDKzGikE)
 
 ![Demo Screenshot](https://ibb.co/cK5GwWNd)
 
