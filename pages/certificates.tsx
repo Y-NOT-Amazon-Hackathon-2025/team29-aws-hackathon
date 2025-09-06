@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
-import Header from '../components/Header';
-import RecommendedCertificates from '../components/RecommendedCertificates';
+import { isAuthenticated } from '../utils/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || API_URL;
 
 interface Certificate {
   id: string;
@@ -28,28 +28,42 @@ export default function Certificates() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [recommendedCerts, setRecommendedCerts] = useState<Certificate[]>([]);
   const [filteredCertificates, setFilteredCertificates] = useState<Certificate[]>([]);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
+  const [filters, setFilters] = useState({
+    category: '',
+    field: '',
+    level: ''
+  });
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: search,
+        page: page.toString(),
+        limit: '20',
+        ...filters
+      });
+
+      const response = await axios.get(`${SEARCH_API_URL.replace(/\/$/, '')}/certifications?${params}`);
+      setSearchResults(response.data);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSearchResults(null);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [search, filters]);
 
-  const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/');
-  };
-
-  const fetchCertificates = async () => {
+  // 기존 자격증 목록 가져오기
+  const fetchSavedCertificates = async () => {
     setLoading(true);
     try {
       // 임시 데이터 (실제로는 API에서 가져옴)
@@ -157,13 +171,39 @@ export default function Certificates() {
           applicationUrl: 'https://www.opic.or.kr/'
         }
       ];
+      console.log('Parsed certificates:', parsedData);
+      setCertificates(parsedData);
+      setFilteredCertificates(parsedData);
       
-      setCertificates(mockData);
-      setFilteredCertificates(mockData);
+      // 로그인한 사용자의 추천 자격증 가져오기
+      if (isAuthenticated()) {
+        try {
+          const token = localStorage.getItem('accessToken');
+          const recommendedResponse = await axios.get(`${API_URL.replace(/\/$/, '')}/certificates/recommended`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const recommendedData = Array.isArray(recommendedResponse.data) ? recommendedResponse.data : [];
+          const parsedRecommended = recommendedData.map((item: any) => ({
+            id: item.id?.S || item.id || '',
+            name: item.name?.S || item.name || '',
+            category: item.category?.S || item.category || '',
+            difficulty: item.difficulty?.S || item.difficulty || '',
+            description: item.description?.S || item.description || '',
+            examDate: item.examDate?.S || item.examDate || '',
+            cost: parseInt(item.cost?.N || item.cost || '0'),
+            duration: item.duration?.S || item.duration || '',
+            passingScore: item.passingScore?.S || item.passingScore || ''
+          }));
+          
+          setRecommendedCerts(parsedRecommended);
+        } catch (error) {
+          console.log('Failed to fetch recommended certificates');
+        }
+      }
     } catch (error) {
       console.error('자격증 조회 실패:', error);
       setCertificates([]);
-      setFilteredCertificates([]);
     }
     setLoading(false);
   };
@@ -186,11 +226,17 @@ export default function Certificates() {
     if (category) {
       filtered = filtered.filter(cert => cert.category === category);
     }
-    
-    setFilteredCertificates(filtered);
+  }, [activeTab]);
+
+  const handleFilterChange = (filterType: string, value: string) => {
+    setFilters(prev => ({ ...prev, [filterType]: value }));
   };
 
-  const showDetail = (cert: Certificate) => {
+  const handlePageChange = (page: number) => {
+    searchCertifications(page);
+  };
+
+  const viewCertificate = (cert: Certificate) => {
     setSelectedCert(cert);
     setShowModal(true);
   };
@@ -227,6 +273,7 @@ export default function Certificates() {
   };
 
   useEffect(() => {
+    setIsLoggedIn(isAuthenticated());
     fetchCertificates();
   }, []);
 
@@ -235,8 +282,98 @@ export default function Certificates() {
   }, [search, category, certificates]);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-      <Header user={user} onLogout={logout} />
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+      <h1>🔍 자격증 검색</h1>
+
+      {/* 추천 자격증 섹션 (로그인한 사용자만) */}
+      {isLoggedIn && recommendedCerts.length > 0 && (
+        <div style={{ marginBottom: '40px' }}>
+          <h2 style={{ 
+            fontSize: '1.5rem', 
+            marginBottom: '20px', 
+            color: '#e74c3c',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            🎯 당신을 위한 추천 자격증
+            <span style={{ 
+              fontSize: '0.8rem', 
+              color: '#7f8c8d',
+              fontWeight: 'normal'
+            }}>
+              (관심사 기반)
+            </span>
+          </h2>
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+            gap: '15px',
+            marginBottom: '30px'
+          }}>
+            {recommendedCerts.slice(0, 3).map((cert) => (
+              <div 
+                key={cert.id} 
+                style={{
+                  border: '2px solid #e74c3c',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  backgroundColor: '#fff5f5',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                  position: 'relative'
+                }}
+                onClick={() => showDetail(cert)}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  backgroundColor: '#e74c3c',
+                  color: 'white',
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 'bold'
+                }}>
+                  추천
+                </div>
+                <h4 style={{ marginBottom: '8px', color: '#2c3e50', fontSize: '1rem' }}>
+                  {cert.name}
+                </h4>
+                <p style={{ color: '#7f8c8d', fontSize: '0.9rem', margin: '5px 0' }}>
+                  {cert.category} | {cert.difficulty}
+                </p>
+                <p style={{ color: '#27ae60', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  {cert.duration}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 검색 필터 */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '20px', 
+        marginBottom: '30px',
+        padding: '20px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px'
+      }}>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>
+          Y-NOT?
+        </div>
+        <nav style={{ display: 'flex', gap: '2rem' }}>
+          <a href="/certificates" style={{ color: '#007bff', textDecoration: 'none', fontWeight: '500' }}>About Qualification</a>
+          <a href="/curriculums" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My Qualiculum</a>
+          <a href="/my" style={{ color: '#6c757d', textDecoration: 'none', fontWeight: '500' }}>My page</a>
+        </nav>
+      </header>
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
         <h1 style={{ fontSize: '32px', fontWeight: '600', color: '#2c3e50', marginBottom: '2rem' }}>
@@ -264,6 +401,7 @@ export default function Certificates() {
                 padding: '12px 16px',
                 border: '2px solid #e9ecef',
                 borderRadius: '8px',
+
                 fontSize: '16px',
                 outline: 'none'
               }}
@@ -410,6 +548,7 @@ export default function Certificates() {
                   onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
                   onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
                 >
+
                   상세보기
                 </button>
               </div>
@@ -448,6 +587,7 @@ export default function Certificates() {
                   {selectedCert.nameKo}
                 </h2>
                 <button
+
                   onClick={() => setShowModal(false)}
                   style={{
                     background: 'none',

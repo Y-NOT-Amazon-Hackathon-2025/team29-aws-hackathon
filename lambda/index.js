@@ -10,6 +10,9 @@ const certificateHandler = require('./handlers/certificates');
 const curriculumHandler = require('./handlers/curriculums');
 const taskHandler = require('./handlers/tasks');
 const plannerHandler = require('./handlers/planner');
+const aiSearchHandler = require('./handlers/ai-search');
+const aiRecommendationHandler = require('./handlers/ai-recommendations');
+const simpleResourcesHandler = require('./handlers/simple-resources');
 
 exports.handler = async (event) => {
   console.log('Event:', JSON.stringify(event, null, 2));
@@ -44,17 +47,56 @@ exports.handler = async (event) => {
     const pathSegments = path.split('/').filter(segment => segment);
     console.log('Path segments:', pathSegments);
     
+    // Certificate search routes
+    if (path === '/certifications' && httpMethod === 'GET') {
+      return await certSearchHandler.search(event);
+    }
+    if (pathSegments[0] === 'certifications' && pathSegments.length === 2 && httpMethod === 'GET') {
+      return await certSearchHandler.getById(event);
+    }
+    
     // Auth routes
     if (path === '/login' && httpMethod === 'POST') {
       return await authHandler.login(JSON.parse(body || '{}'));
     }
+    
+    // AI Search routes
+    if (path === '/ai/ask' && httpMethod === 'POST') {
+      return await aiSearchHandler.askAI(JSON.parse(body || '{}'));
+    }
+    
+    if (path === '/ai/recommend' && httpMethod === 'POST') {
+      return await aiSearchHandler.recommendCertifications(JSON.parse(body || '{}'));
+    }
+    
+    // AI Recommendation routes
+    if (path === '/ai/recommendations' && httpMethod === 'GET') {
+      if (!userId) {
+        return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
+      }
+      return await aiRecommendationHandler.getAIRecommendations(userId);
+    }
     if (path === '/register' && httpMethod === 'POST') {
       return await authHandler.register(JSON.parse(body || '{}'));
+    }
+    if (path === '/refresh' && httpMethod === 'POST') {
+      return await authHandler.refresh(JSON.parse(body || '{}'));
+    }
+    
+    // Learning Resources routes
+    if (pathSegments[0] === 'resources' && pathSegments.length === 2 && httpMethod === 'GET') {
+      return await simpleResourcesHandler.getRecommendedResources(pathSegments[1]);
     }
     
     // Certificate routes
     if (path === '/certificates' && httpMethod === 'GET') {
       return await certificateHandler.list();
+    }
+    if (path === '/certificates/recommended' && httpMethod === 'GET') {
+      if (!userId) {
+        return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
+      }
+      return await certificateHandler.getRecommended(userId);
     }
     if (pathSegments[0] === 'certificates' && pathSegments.length === 2 && httpMethod === 'GET') {
       return await certificateHandler.getById(pathSegments[1]);

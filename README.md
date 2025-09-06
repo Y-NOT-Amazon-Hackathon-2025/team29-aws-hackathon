@@ -1,4 +1,4 @@
-# [Y-NOT?] : AI 쿼리큘럼 🚀
+
 
 ![AWS Hackathon](https://img.shields.io/badge/AWS-Hackathon-orange?logo=amazonaws)
 ![Status](https://img.shields.io/badge/status-developing-brightgreen)
@@ -32,15 +32,3 @@
 - **안전성** : Guardrails 적용 (부적절 답변/개인정보 차단)
 
 ---
-
-## 🎥 동영상 데모
-
-👉 [시연 영상 보러가기](https://youtu.be/your-demo-video-link)  
-
-![Demo Screenshot](https://user-images.githubusercontent.com/demo-image.png)
-
----
-
-## ⚙️ 리소스 배포하기
-
-### 아키텍처

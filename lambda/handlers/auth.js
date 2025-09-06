@@ -1,6 +1,8 @@
 const { CognitoIdentityProviderClient, InitiateAuthCommand, SignUpCommand, AdminGetUserCommand } = require('@aws-sdk/client-cognito-identity-provider');
+const { DynamoDBClient, PutItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 
 const cognito = new CognitoIdentityProviderClient({});
+const dynamodb = new DynamoDBClient({});
 
 const response = (statusCode, body) => ({
   statusCode,
@@ -11,6 +13,56 @@ const response = (statusCode, body) => ({
   },
   body: JSON.stringify(body)
 });
+
+exports.register = async (data) => {
+  const { username, password, name, birthDate, gender, majorJob, interests, email } = data;
+  
+  try {
+    // Cognito 회원가입 (이메일을 username으로 사용)
+    const command = new SignUpCommand({
+      ClientId: process.env.USER_POOL_CLIENT_ID,
+      Username: email,
+      Password: password,
+      UserAttributes: [
+        { Name: 'email', Value: email },
+        { Name: 'name', Value: name }
+      ]
+    });
+    
+    const result = await cognito.send(command);
+    const userId = result.UserSub;
+    
+    // DynamoDB에 사용자 프로필 저장
+    await dynamodb.send(new PutItemCommand({
+      TableName: 'UserProfileTable',
+      Item: {
+        userId: { S: userId },
+        type: { S: 'profile' },
+        username: { S: username },
+        email: { S: email },
+        name: { S: name },
+        birthDate: { S: birthDate },
+        gender: { S: gender },
+        majorJob: { S: majorJob },
+        interests: { L: interests.map(interest => ({ S: interest })) },
+        createdAt: { S: new Date().toISOString() },
+        updatedAt: { S: new Date().toISOString() }
+      }
+    }));
+    
+    console.log('User registered successfully:', email);
+    return response(200, { 
+      message: '회원가입이 완료되었습니다. 이메일을 확인해주세요.',
+      userId: userId
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    if (error.name === 'UsernameExistsException') {
+      return response(400, { error: '이미 존재하는 이메일입니다.' });
+    }
+    return response(400, { error: '회원가입에 실패했습니다.' });
+  }
+};
 
 exports.login = async (data) => {
   const { email, password } = data;
@@ -50,28 +102,68 @@ exports.login = async (data) => {
   }
 };
 
-exports.register = async (data) => {
-  const { email, password, name } = data;
+exports.refresh = async (data) => {
+  const { refreshToken } = data;
   
   try {
-    const command = new SignUpCommand({
+    const { InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
+    
+    const command = new InitiateAuthCommand({
+      AuthFlow: 'REFRESH_TOKEN_AUTH',
       ClientId: process.env.USER_POOL_CLIENT_ID,
-      Username: email,
-      Password: password,
-      UserAttributes: [
-        { Name: 'email', Value: email },
-        { Name: 'name', Value: name }
-      ]
+      AuthParameters: {
+        REFRESH_TOKEN: refreshToken
+      }
     });
     
     const result = await cognito.send(command);
+    console.log('Token refresh successful');
     
-    return response(201, {
-      userId: result.UserSub,
-      message: 'User created successfully. Please check your email for verification.'
+    return response(200, {
+      accessToken: result.AuthenticationResult.AccessToken,
+      refreshToken: result.AuthenticationResult.RefreshToken || refreshToken,
+      idToken: result.AuthenticationResult.IdToken
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    return response(400, { error: error.message });
+    console.error('Token refresh error:', error);
+    if (error.name === 'NotAuthorizedException') {
+      return response(401, { error: 'Refresh token이 유효하지 않습니다.' });
+    }
+    return response(401, { error: 'Token refresh에 실패했습니다.' });
+  }
+};
+
+// 사용자 프로필 조회
+exports.getUserProfile = async (userId) => {
+  try {
+    const result = await dynamodb.send(new GetItemCommand({
+      TableName: 'UserProfileTable',
+      Key: {
+        userId: { S: userId },
+        type: { S: 'profile' }
+      }
+    }));
+
+    if (!result.Item) {
+      return response(404, { error: '사용자 프로필을 찾을 수 없습니다.' });
+    }
+
+    const profile = {
+      userId: result.Item.userId?.S,
+      username: result.Item.username?.S,
+      email: result.Item.email?.S,
+      name: result.Item.name?.S,
+      birthDate: result.Item.birthDate?.S,
+      gender: result.Item.gender?.S,
+      majorJob: result.Item.majorJob?.S,
+      interests: result.Item.interests?.L?.map(item => item.S) || [],
+      createdAt: result.Item.createdAt?.S,
+      updatedAt: result.Item.updatedAt?.S
+    };
+
+    return response(200, { profile });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    return response(500, { error: '프로필 조회에 실패했습니다.' });
   }
 };

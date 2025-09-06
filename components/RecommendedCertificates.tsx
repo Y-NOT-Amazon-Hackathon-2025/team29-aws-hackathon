@@ -1,86 +1,171 @@
 import { useState, useEffect } from 'react';
-
-interface Certificate {
-  id: string;
-  name: string;
-  nameKo: string;
-  category: string;
-  type: string;
-  description: string;
-}
+import { useRouter } from 'next/router';
+import api from '../utils/auth';
 
 export default function RecommendedCertificates() {
-  const [recommendedCerts, setRecommendedCerts] = useState<Certificate[]>([]);
+  const [recommendedCerts, setRecommendedCerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    const mockRecommended = [
-      {
-        id: 'aws-saa',
-        name: 'AWS Solutions Architect Associate',
-        nameKo: 'AWS 솔루션스 아키텍트 어소시에이트',
-        category: '클라우드',
-        type: '국제',
-        description: 'AWS 클라우드 환경에서 확장 가능하고 안전한 애플리케이션을 설계하고 배포하는 능력을 검증'
-      },
-      {
-        id: 'sqld',
-        name: 'SQL Developer',
-        nameKo: 'SQL 개발자',
-        category: '데이터베이스',
-        type: '국가공인',
-        description: 'SQL을 활용한 데이터베이스 설계 및 개발 능력을 검증하는 자격증'
-      },
-      {
-        id: 'adsp',
-        name: 'Advanced Data Analytics Semi-Professional',
-        nameKo: '데이터분석 준전문가',
-        category: '데이터분석',
-        type: '국가공인',
-        description: '데이터 이해와 처리기술, 분석기법, 시각화 등 데이터 분석 전반에 대한 능력을 검증'
+    const fetchRecommendedCerts = async () => {
+      try {
+        const response = await api.get('/certificates/recommended');
+        setRecommendedCerts(response.data.slice(0, 4)); // 최대 4개만 표시
+      } catch (error) {
+        console.error('Failed to fetch recommended certificates:', error);
+      } finally {
+        setLoading(false);
       }
-    ];
-    setRecommendedCerts(mockRecommended);
+    };
+
+    fetchRecommendedCerts();
   }, []);
 
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px' }}>
+        추천 자격증을 불러오는 중...
+      </div>
+    );
+  }
+
+  if (recommendedCerts.length === 0) {
+    return null;
+  }
+
   return (
-    <div style={{ marginTop: '40px' }}>
-      <h3 style={{ marginBottom: '20px', color: '#333', fontSize: '1.5rem' }}>추천 자격증</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+    <section style={{ marginBottom: '50px' }}>
+      <h2 style={{ 
+        fontSize: '2rem', 
+        marginBottom: '30px', 
+        color: '#e74c3c',
+        textAlign: 'center'
+      }}>
+        🎯 당신의 관심사에 맞는 추천 자격증
+      </h2>
+      
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+        gap: '20px',
+        maxWidth: '1200px',
+        margin: '0 auto'
+      }}>
         {recommendedCerts.map((cert) => (
-          <div
-            key={cert.id}
+          <div 
+            key={cert.id?.S} 
             style={{
-              backgroundColor: 'white',
+              border: '2px solid #e74c3c',
+              borderRadius: '12px',
               padding: '20px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              backgroundColor: '#fff5f5',
               cursor: 'pointer',
-              transition: 'transform 0.2s'
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              boxShadow: '0 2px 8px rgba(231, 76, 60, 0.1)'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            onClick={() => router.push(`/certificates/${cert.id?.S}`)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-8px)';
+              e.currentTarget.style.boxShadow = '0 8px 25px rgba(231, 76, 60, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(231, 76, 60, 0.1)';
+            }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-              <h4 style={{ margin: 0, color: '#007bff', fontSize: '1.1rem' }}>{cert.nameKo}</h4>
-              <span style={{
-                backgroundColor: cert.type === '국제' ? '#28a745' : cert.type === '국가공인' ? '#007bff' : '#6c757d',
-                color: 'white',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                fontSize: '0.8rem'
+            {/* 추천 배지 */}
+            <div style={{
+              position: 'absolute',
+              top: '15px',
+              right: '15px',
+              backgroundColor: '#e74c3c',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}>
+              ✨ 추천
+            </div>
+
+            <h3 style={{ 
+              marginBottom: '15px', 
+              color: '#2c3e50',
+              fontSize: '1.3rem',
+              fontWeight: 'bold',
+              paddingRight: '60px' // 배지 공간 확보
+            }}>
+              {cert.name?.S || cert.fullName?.S}
+            </h3>
+            
+            <div style={{ marginBottom: '10px' }}>
+              <span style={{ 
+                color: '#7f8c8d', 
+                fontSize: '14px',
+                backgroundColor: '#ecf0f1',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                marginRight: '8px'
               }}>
-                {cert.type}
+                {cert.organization?.S}
+              </span>
+              <span style={{ 
+                color: '#e67e22', 
+                fontSize: '14px',
+                backgroundColor: '#fef9e7',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontWeight: 'bold'
+              }}>
+                {cert.difficulty?.S}
               </span>
             </div>
-            <p style={{ color: '#666', fontSize: '0.9rem', margin: '8px 0', lineHeight: '1.4' }}>
-              {cert.description}
-            </p>
-            <div style={{ color: '#007bff', fontSize: '0.8rem', fontWeight: '500' }}>
-              {cert.category}
+
+            <div style={{ 
+              color: '#27ae60', 
+              fontWeight: 'bold',
+              fontSize: '15px',
+              marginTop: '15px'
+            }}>
+              📚 학습기간: {cert.studyPeriod?.S}
             </div>
+
+            {cert.examFee?.S && (
+              <div style={{ 
+                color: '#8e44ad', 
+                fontSize: '14px',
+                marginTop: '8px'
+              }}>
+                💰 응시료: {cert.examFee?.S}
+              </div>
+            )}
           </div>
         ))}
       </div>
-    </div>
+
+      <div style={{ textAlign: 'center', marginTop: '30px' }}>
+        <button
+          onClick={() => router.push('/certificates')}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#e74c3c',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            transition: 'background-color 0.3s ease'
+          }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#c0392b'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#e74c3c'}
+        >
+          더 많은 자격증 보기 →
+        </button>
+      </div>
+    </section>
   );
 }
