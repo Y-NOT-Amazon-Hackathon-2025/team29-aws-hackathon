@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import api, { setToken, isAuthenticated } from '../utils/auth';
+import api, { setTokens, isAuthenticated } from '../utils/auth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -32,7 +32,7 @@ export default function Login() {
       console.log('Login response:', response.data);
 
       if (response.data.accessToken) {
-        setToken(response.data.accessToken);
+        setTokens(response.data.accessToken, response.data.refreshToken);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         
         console.log('Login successful, redirecting...');
