@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || API_URL;
 
 interface Certificate {
   id: string;
@@ -25,14 +26,48 @@ interface Certificate {
 export default function Certificates() {
   const router = useRouter();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [filteredCertificates, setFilteredCertificates] = useState<Certificate[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
+  const [filters, setFilters] = useState({
+    category: '',
+    field: '',
+    level: ''
+  });
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
 
-  const fetchCertificates = async () => {
+  // Q-Net 검색 기능
+  const searchCertifications = useCallback(async (page = 1) => {
+    if (!search && !Object.values(filters).some(f => f)) {
+      setSearchResults(null);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: search,
+        page: page.toString(),
+        limit: '20',
+        ...filters
+      });
+
+      const response = await axios.get(`${SEARCH_API_URL.replace(/\/$/, '')}/certifications?${params}`);
+      setSearchResults(response.data);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSearchResults(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, filters]);
+
+  // 기존 자격증 목록 가져오기
+  const fetchSavedCertificates = async () => {
     setLoading(true);
     try {
       // 임시 데이터 (실제로는 API에서 가져옴)
@@ -146,7 +181,6 @@ export default function Certificates() {
     } catch (error) {
       console.error('자격증 조회 실패:', error);
       setCertificates([]);
-      setFilteredCertificates([]);
     }
     setLoading(false);
   };
@@ -169,11 +203,17 @@ export default function Certificates() {
     if (category) {
       filtered = filtered.filter(cert => cert.category === category);
     }
-    
-    setFilteredCertificates(filtered);
+  }, [activeTab]);
+
+  const handleFilterChange = (filterType: string, value: string) => {
+    setFilters(prev => ({ ...prev, [filterType]: value }));
   };
 
-  const showDetail = (cert: Certificate) => {
+  const handlePageChange = (page: number) => {
+    searchCertifications(page);
+  };
+
+  const viewCertificate = (cert: Certificate) => {
     setSelectedCert(cert);
     setShowModal(true);
   };
@@ -264,6 +304,7 @@ export default function Certificates() {
                 padding: '12px 16px',
                 border: '2px solid #e9ecef',
                 borderRadius: '8px',
+
                 fontSize: '16px',
                 outline: 'none'
               }}
@@ -410,6 +451,7 @@ export default function Certificates() {
                   onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
                   onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
                 >
+
                   상세보기
                 </button>
               </div>
@@ -446,6 +488,7 @@ export default function Certificates() {
                   {selectedCert.nameKo}
                 </h2>
                 <button
+
                   onClick={() => setShowModal(false)}
                   style={{
                     background: 'none',
