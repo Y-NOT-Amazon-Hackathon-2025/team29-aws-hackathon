@@ -47,6 +47,14 @@ exports.handler = async (event) => {
     const pathSegments = path.split('/').filter(segment => segment);
     console.log('Path segments:', pathSegments);
     
+    // Certificate search routes
+    if (path === '/certifications' && httpMethod === 'GET') {
+      return await certSearchHandler.search(event);
+    }
+    if (pathSegments[0] === 'certifications' && pathSegments.length === 2 && httpMethod === 'GET') {
+      return await certSearchHandler.getById(event);
+    }
+    
     // Auth routes
     if (path === '/login' && httpMethod === 'POST') {
       return await authHandler.login(JSON.parse(body || '{}'));
