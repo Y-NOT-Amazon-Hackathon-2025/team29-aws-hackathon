@@ -1,8 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import api, { setToken, isAuthenticated } from '../utils/auth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,22 +9,39 @@ export default function Login() {
   const [error, setError] = useState('');
   const router = useRouter();
 
+  useEffect(() => {
+    // 이미 로그인된 경우 홈으로 리다이렉트
+    if (isAuthenticated()) {
+      router.push('/');
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/login`, {
+      console.log('Attempting login with:', { email });
+      
+      const response = await api.post('/login', {
         email,
         password
       });
 
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      
-      router.push('/dashboard');
+      console.log('Login response:', response.data);
+
+      if (response.data.accessToken) {
+        setToken(response.data.accessToken);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        console.log('Login successful, redirecting...');
+        router.push('/');
+      } else {
+        throw new Error('토큰을 받지 못했습니다.');
+      }
     } catch (error: any) {
+      console.error('Login error:', error);
       setError(error.response?.data?.error || '로그인에 실패했습니다');
     }
     setLoading(false);

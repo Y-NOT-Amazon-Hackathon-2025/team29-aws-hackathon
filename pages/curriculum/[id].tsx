@@ -44,6 +44,7 @@ export default function CurriculumDetail() {
       const response = await axios.get(`${API_URL}/curriculums/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
       setCurriculum(response.data);
     } catch (error) {
       console.error('커리큘럼 조회 실패:', error);

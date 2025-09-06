@@ -33,6 +33,7 @@ export class CertificationStack extends cdk.Stack {
 
     const userTable = new dynamodb.Table(this, 'UsersTable', {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'type', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY
     });
@@ -69,7 +70,7 @@ export class CertificationStack extends cdk.Stack {
 
     // Cognito permissions
     apiLambda.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['cognito-idp:InitiateAuth', 'cognito-idp:SignUp'],
+      actions: ['cognito-idp:InitiateAuth', 'cognito-idp:SignUp', 'cognito-idp:AdminGetUser'],
       resources: [userPool.userPoolArn]
     }));
 

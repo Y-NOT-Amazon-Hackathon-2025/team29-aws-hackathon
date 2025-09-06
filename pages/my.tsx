@@ -28,20 +28,21 @@ export default function MyPage() {
         return;
       }
 
-      // 즐겨찾기한 자격증 목록 조회
-      const savedResponse = await axios.get(`${API_URL}/certificates/saved`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      // 각 자격증의 상세 정보 조회
-      const savedData = [];
-      for (const item of savedResponse.data) {
-        try {
-          const certId = item.certId?.S || item.certId;
-          const certResponse = await axios.get(`${API_URL}/certificates/${certId}`);
-          
-          const certData = certResponse.data;
-          savedData.push({
+      // 모든 자격증 정보를 먼저 가져오기
+      const allCertsResponse = await axios.get(`${API_URL.replace(/\/$/, '')}/certificates`);
+      const allCerts = Array.isArray(allCertsResponse.data) ? allCertsResponse.data : [];
+      
+      // localStorage에서 저장된 자격증 ID들 가져오기
+      const savedCertIds = JSON.parse(localStorage.getItem('savedCertificates') || '["ceh", "ccna", "aws-solutions-architect-associate"]');
+      
+      // 저장된 자격증과 매칭
+      const savedData = savedCertIds.map(certId => {
+        const certData = allCerts.find(cert => 
+          (cert.id?.S || cert.id) === certId
+        );
+        
+        if (certData) {
+          return {
             certId,
             certName: certData.name?.S || certData.name || certId,
             category: certData.category?.S || certData.category || '',
@@ -49,12 +50,21 @@ export default function MyPage() {
             description: certData.description?.S || certData.description || '',
             examDate: certData.examDate?.S || certData.examDate || '',
             cost: parseInt(certData.cost?.N || certData.cost || '0'),
-            createdAt: item.createdAt?.S || item.createdAt || ''
-          });
-        } catch (error) {
-          console.error(`Error fetching certificate ${item.certId}:`, error);
+            createdAt: new Date().toISOString()
+          };
+        } else {
+          return {
+            certId,
+            certName: certId,
+            category: 'Unknown',
+            difficulty: 'Unknown',
+            description: '자격증 정보를 불러올 수 없습니다.',
+            examDate: '',
+            cost: 0,
+            createdAt: new Date().toISOString()
+          };
         }
-      }
+      });
 
       setSavedCertificates(savedData);
     } catch (error) {
@@ -67,12 +77,14 @@ export default function MyPage() {
     if (!confirm('즐겨찾기에서 제거하시겠습니까?')) return;
 
     try {
-      const token = localStorage.getItem('accessToken');
-      await axios.delete(`${API_URL}/certificates/${certId}/save`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // localStorage에서 제거
+      const savedCerts = JSON.parse(localStorage.getItem('savedCertificates') || '[]');
+      const updatedCerts = savedCerts.filter(id => id !== certId);
+      localStorage.setItem('savedCertificates', JSON.stringify(updatedCerts));
       
-      fetchSavedCertificates();
+      // 화면에서 즉시 제거
+      setSavedCertificates(prev => prev.filter(cert => cert.certId !== certId));
+      
       alert('즐겨찾기에서 제거되었습니다.');
     } catch (error) {
       alert('제거에 실패했습니다.');

@@ -8,12 +8,17 @@ const dynamodb = new DynamoDBClient({});
 
 const response = (statusCode, body) => ({
   statusCode,
-  headers: { 'Access-Control-Allow-Origin': '*' },
+  headers: { 
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+  },
   body: JSON.stringify(body)
 });
 
 exports.generate = async (data, userId) => {
-  if (!userId) return response(401, { error: 'Unauthorized' });
+  // Allow anonymous users to generate curriculums
+  const effectiveUserId = userId || 'anonymous';
   
   const { 
     certificationId, 
@@ -336,7 +341,8 @@ function generateEnhancedFallback(certificationId, timeframe, studyHoursPerWeek,
 }
 
 exports.apply = async (curriculumId, data, userId) => {
-  if (!userId) return response(401, { error: 'Unauthorized' });
+  // Allow anonymous users to apply curriculum plans
+  const effectiveUserId = userId || 'anonymous';
   
   const { curriculum } = data;
   
@@ -345,8 +351,8 @@ exports.apply = async (curriculumId, data, userId) => {
     await dynamodb.send(new UpdateItemCommand({
       TableName: process.env.USER_TABLE,
       Key: {
-        userId: { S: userId },
-        'type#id': { S: `curriculum#${curriculumId}` }
+        userId: { S: effectiveUserId },
+        type: { S: `curriculum#${curriculumId}` }
       },
       UpdateExpression: 'SET #status = :status, aiGenerated = :aiGenerated, updatedAt = :updatedAt, planType = :planType, totalHours = :totalHours',
       ExpressionAttributeNames: { '#status': 'status' },
@@ -368,8 +374,8 @@ exports.apply = async (curriculumId, data, userId) => {
             await dynamodb.send(new PutItemCommand({
               TableName: process.env.USER_TABLE,
               Item: {
-                userId: { S: userId },
-                'type#id': { S: `task#${taskId}` },
+                userId: { S: effectiveUserId },
+                type: { S: `task#${taskId}` },
                 id: { S: taskId },
                 curriculumId: { S: curriculumId },
                 title: { S: task.title },
@@ -379,8 +385,8 @@ exports.apply = async (curriculumId, data, userId) => {
                 estimatedHours: { N: String(task.estimatedHours || 1) },
                 taskType: { S: task.type || 'study' },
                 difficulty: { S: task.difficulty || 'medium' },
-                resources: { SS: task.resources || [] },
-                deliverables: { SS: task.deliverables || [] },
+                resources: { SS: task.resources || ['기본 자료'] },
+                deliverables: { SS: task.deliverables || ['학습 완료'] },
                 status: { S: 'pending' },
                 priority: { S: task.difficulty === 'hard' ? 'high' : task.difficulty === 'easy' ? 'low' : 'medium' },
                 createdAt: { S: new Date().toISOString() }
@@ -398,8 +404,8 @@ exports.apply = async (curriculumId, data, userId) => {
         await dynamodb.send(new PutItemCommand({
           TableName: process.env.USER_TABLE,
           Item: {
-            userId: { S: userId },
-            'type#id': { S: `milestone#${milestoneId}` },
+            userId: { S: effectiveUserId },
+            type: { S: `milestone#${milestoneId}` },
             id: { S: milestoneId },
             curriculumId: { S: curriculumId },
             title: { S: milestone.title },

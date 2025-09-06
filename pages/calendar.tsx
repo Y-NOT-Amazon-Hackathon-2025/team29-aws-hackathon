@@ -74,6 +74,7 @@ export default function Calendar() {
       
       alert(enabled ? '알림이 설정되었습니다!' : '알림이 해제되었습니다!');
     } catch (error) {
+      console.error('알림 설정 오류:', error);
       alert('알림 설정에 실패했습니다.');
     }
   };

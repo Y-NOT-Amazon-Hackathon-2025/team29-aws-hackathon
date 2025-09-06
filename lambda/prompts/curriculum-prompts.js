@@ -33,78 +33,126 @@ exports.generateCurriculumPrompt = (certId, difficulty, timeframe, studyHoursPer
   const cert = CERTIFICATION_DETAILS[certId] || { name: certId, domains: [] };
   const totalHours = timeframe * studyHoursPerWeek;
   
-  return `당신은 ${cert.name} 자격증 전문 강사입니다. 다음 조건에 맞는 실전 중심의 상세한 학습 커리큘럼을 생성해주세요.
+  // 사용자 수준별 학습 비율 조정
+  const difficultyRatios = {
+    beginner: { theory: 60, practice: 25, quiz: 15 },
+    intermediate: { theory: 45, practice: 35, quiz: 20 },
+    advanced: { theory: 30, practice: 50, quiz: 20 }
+  };
+  
+  const ratio = difficultyRatios[userLevel] || difficultyRatios.intermediate;
+  
+  return `당신은 ${cert.name} 자격증 전문 강사입니다. 다음 조건에 맞는 개인화된 상세 학습 커리큘럼을 생성해주세요.
 
 **학습자 정보:**
-- 자격증: ${cert.name}
+- 자격증: ${cert.name} (certId: ${certId})
 - 현재 수준: ${userLevel}
 - 목표 난이도: ${difficulty}
 - 학습 기간: ${timeframe}주 (총 ${totalHours}시간)
 - 주당 학습시간: ${studyHoursPerWeek}시간
+- 이론:실습:문제풀이 비율 = ${ratio.theory}:${ratio.practice}:${ratio.quiz}
 
 **시험 정보:**
 ${cert.domains.length > 0 ? `- 출제 영역: ${cert.domains.join(', ')}` : ''}
 ${cert.examFormat ? `- 시험 형식: ${cert.examFormat}` : ''}
 ${cert.passingScore ? `- 합격 점수: ${cert.passingScore}` : ''}
 
-**커리큘럼 요구사항:**
-1. 실제 시험 출제 비중을 반영한 학습 시간 배분
-2. 이론 학습 → 실습 → 문제 풀이 → 복습 순서로 구성
-3. 주차별 명확한 학습 목표와 성취 기준
-4. 구체적인 학습 자료와 실습 과제 제시
-5. 마지막 2-3주는 집중 복습 및 모의고사
+**반드시 포함해야 하는 요소:**
+1. 기본 메타데이터: certId, durationWeeks, difficulty
+2. **주차별 학습 목표(goal)**: 각 주차별로 구체적인 학습 주제를 정의
+3. **세부 학습 활동(activities)**: 교재 학습, 강의 시청, 문제 풀이, 실습 과제
+4. **자료 추천(resources)**: 교재 챕터, 강의 영상, 공식 문서, 온라인 문제집 등
+5. **체크리스트(checklist)**: 사용자가 반드시 달성해야 할 개념/과제 항목
+6. **최종 대비(finalExamPrep)**: 모의고사/기출 문제, 복습 주차
+
+**개인화 요소:**
+- ${userLevel} 수준에 맞는 설명 깊이와 실습 강도
+- 주차별 점진적 난이도 증가
+- 마지막 2주는 복습과 모의고사 중심
 
 **출력 형식 (반드시 유효한 JSON):**
 {
   "curriculum": {
     "title": "${cert.name} ${timeframe}주 완성 커리큘럼",
-    "totalWeeks": ${timeframe},
+    "certId": "${certId}",
+    "durationWeeks": ${timeframe},
+    "difficulty": "${difficulty}",
+    "userLevel": "${userLevel}",
     "totalHours": ${totalHours},
-    "targetLevel": "${difficulty}",
-    "studyPlan": {
-      "theory": ${Math.round(totalHours * 0.4)},
-      "practice": ${Math.round(totalHours * 0.3)},
-      "mockExams": ${Math.round(totalHours * 0.2)},
-      "review": ${Math.round(totalHours * 0.1)}
+    "studyRatio": {
+      "theory": ${ratio.theory},
+      "practice": ${ratio.practice},
+      "quiz": ${ratio.quiz}
     },
     "weeks": [
       {
         "week": 1,
-        "phase": "foundation",
-        "topic": "구체적인 주차 주제",
-        "learningObjectives": ["목표1", "목표2", "목표3"],
-        "tasks": [
+        "goal": "구체적인 주차별 학습 목표",
+        "activities": [
           {
-            "title": "구체적인 학습 과제명",
-            "type": "theory|practice|quiz|project|review",
-            "estimatedHours": 3,
-            "difficulty": "easy|medium|hard",
-            "resources": ["구체적인 자료명", "실습 가이드"],
-            "deliverables": ["완료해야 할 결과물"],
-            "assessmentCriteria": "평가 기준"
+            "type": "theory",
+            "title": "교재 학습",
+            "content": "구체적인 학습 내용",
+            "hours": ${Math.round(studyHoursPerWeek * ratio.theory / 100)}
+          },
+          {
+            "type": "practice",
+            "title": "실습 과제",
+            "content": "구체적인 실습 내용",
+            "hours": ${Math.round(studyHoursPerWeek * ratio.practice / 100)}
+          },
+          {
+            "type": "quiz",
+            "title": "문제 풀이",
+            "content": "문제집 범위",
+            "hours": ${Math.round(studyHoursPerWeek * ratio.quiz / 100)}
           }
         ],
-        "weeklyGoal": "이번 주 달성 목표",
-        "prerequisites": ["필요한 선행 지식"]
+        "resources": [
+          {
+            "type": "textbook",
+            "title": "교재명",
+            "chapters": ["챕터1", "챕터2"]
+          },
+          {
+            "type": "video",
+            "title": "강의명",
+            "duration": "시간"
+          },
+          {
+            "type": "documentation",
+            "title": "공식 문서",
+            "url": "링크"
+          },
+          {
+            "type": "practice",
+            "title": "온라인 문제집",
+            "questions": 50
+          }
+        ],
+        "checklist": [
+          "반드시 이해해야 할 개념1",
+          "완료해야 할 실습1",
+          "달성해야 할 점수"
+        ]
       }
     ],
-    "milestones": [
-      {
-        "week": 4,
-        "title": "1차 중간 평가",
-        "description": "기초 개념 이해도 점검",
-        "assessmentType": "quiz"
-      }
-    ],
-    "resources": {
-      "books": ["추천 교재"],
-      "onlineCourses": ["온라인 강의"],
-      "practiceExams": ["모의고사 사이트"],
-      "labs": ["실습 환경"]
-    },
-    "tips": [
-      "학습 효율을 높이는 팁들"
-    ]
+    "finalExamPrep": {
+      "mockExams": [
+        {
+          "week": ${Math.max(1, timeframe - 2)},
+          "title": "1차 모의고사",
+          "targetScore": 70
+        },
+        {
+          "week": ${timeframe - 1},
+          "title": "최종 모의고사",
+          "targetScore": 80
+        }
+      ],
+      "reviewWeeks": [${timeframe - 1}, ${timeframe}],
+      "criticalTopics": ["핵심 주제1", "핵심 주제2"]
+    }
   }
 }
 
