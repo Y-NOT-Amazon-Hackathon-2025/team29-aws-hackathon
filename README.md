@@ -37,7 +37,7 @@
 
 👉 [시연 영상 보러가기](https://youtu.be/your-demo-video-link)
 
-![Demo Screenshot](https://user-images.githubusercontent.com/demo-image.png)  =>사진 수정 필요
+![Demo Screenshot](https://user-images.githubusercontent.com/demo-image.png)
 
 ---
 
