@@ -10,6 +10,7 @@ const certificateHandler = require('./handlers/certificates');
 const curriculumHandler = require('./handlers/curriculums');
 const taskHandler = require('./handlers/tasks');
 const plannerHandler = require('./handlers/planner');
+const certSearchHandler = require('./handlers/cert-search');
 
 exports.handler = async (event) => {
   console.log('Event:', JSON.stringify(event, null, 2));
@@ -43,6 +44,14 @@ exports.handler = async (event) => {
     // Extract path segments
     const pathSegments = path.split('/').filter(segment => segment);
     console.log('Path segments:', pathSegments);
+    
+    // Certificate search routes
+    if (path === '/certifications' && httpMethod === 'GET') {
+      return await certSearchHandler.search(event);
+    }
+    if (pathSegments[0] === 'certifications' && pathSegments.length === 2 && httpMethod === 'GET') {
+      return await certSearchHandler.getById(event);
+    }
     
     // Auth routes
     if (path === '/login' && httpMethod === 'POST') {

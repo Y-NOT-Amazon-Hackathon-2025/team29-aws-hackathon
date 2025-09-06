@@ -1,39 +1,90 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const SEARCH_API_URL = process.env.NEXT_PUBLIC_SEARCH_API_URL || API_URL;
 
 interface Certificate {
   id: string;
   name: string;
   category: string;
-  difficulty: string;
+  difficulty?: string;
   description: string;
-  examDate: string;
-  cost: number;
-  duration: string;
-  passingScore: string;
+  examDate?: string;
+  cost?: number;
+  duration?: string;
+  passingScore?: string;
+  field?: string;
+  level?: string;
+  code?: string;
+}
+
+interface SearchResult {
+  items: Certificate[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  filters: {
+    categories: string[];
+    fields: string[];
+    levels: string[];
+  };
 }
 
 export default function Certificates() {
   const router = useRouter();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [filteredCertificates, setFilteredCertificates] = useState<Certificate[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
+  const [filters, setFilters] = useState({
+    category: '',
+    field: '',
+    level: ''
+  });
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
 
-  const fetchCertificates = async () => {
+  // Q-Net 검색 기능
+  const searchCertifications = useCallback(async (page = 1) => {
+    if (!search && !Object.values(filters).some(f => f)) {
+      setSearchResults(null);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: search,
+        page: page.toString(),
+        limit: '20',
+        ...filters
+      });
+
+      const response = await axios.get(`${SEARCH_API_URL.replace(/\/$/, '')}/certifications?${params}`);
+      setSearchResults(response.data);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSearchResults(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, filters]);
+
+  // 기존 자격증 목록 가져오기
+  const fetchSavedCertificates = async () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL.replace(/\/$/, '')}/certificates`);
       
-      // 응답이 배열인지 확인하고 DynamoDB 형식 데이터 파싱
       const rawData = Array.isArray(response.data) ? response.data : [];
-      
       const parsedData = rawData.map((item: any) => ({
         id: item.id?.S || item.id || '',
         name: item.name?.S || item.name || '',
@@ -46,140 +97,172 @@ export default function Certificates() {
         passingScore: item.passingScore?.S || item.passingScore || ''
       }));
       
-      console.log('Parsed certificates:', parsedData);
       setCertificates(parsedData);
-      setFilteredCertificates(parsedData);
     } catch (error) {
       console.error('자격증 조회 실패:', error);
       setCertificates([]);
-      setFilteredCertificates([]);
     }
     setLoading(false);
   };
 
-  const filterCertificates = () => {
-    if (!certificates || certificates.length === 0) {
-      return;
+  // 검색 디바운스
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (activeTab === 'search') {
+        searchCertifications(1);
+      }
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [search, filters, activeTab, searchCertifications]);
+
+  useEffect(() => {
+    if (activeTab === 'saved') {
+      fetchSavedCertificates();
     }
-    
-    let filtered = certificates;
-    
-    if (search) {
-      filtered = filtered.filter(cert => 
-        cert.name.toLowerCase().includes(search.toLowerCase()) ||
-        cert.description.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
-    if (category) {
-      filtered = filtered.filter(cert => cert.category === category);
-    }
-    
-    setFilteredCertificates(filtered);
+  }, [activeTab]);
+
+  const handleFilterChange = (filterType: string, value: string) => {
+    setFilters(prev => ({ ...prev, [filterType]: value }));
   };
 
-  const showDetail = (cert: Certificate) => {
+  const handlePageChange = (page: number) => {
+    searchCertifications(page);
+  };
+
+  const viewCertificate = (cert: Certificate) => {
     setSelectedCert(cert);
     setShowModal(true);
   };
 
-  const saveCertificate = async (certId: string) => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        alert('로그인이 필요합니다.');
-        return;
-      }
-      
-      const response = await axios.post(`${API_URL.replace(/\/$/, '')}/certificates/${certId}/save`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      console.log('Save response:', response.data);
-      
-      if (response.data.success) {
-        // localStorage에 저장된 자격증 추가
-        const savedCerts = JSON.parse(localStorage.getItem('savedCertificates') || '["ceh", "ccna", "aws-solutions-architect-associate"]');
-        if (!savedCerts.includes(certId)) {
-          savedCerts.push(certId);
-          localStorage.setItem('savedCertificates', JSON.stringify(savedCerts));
-        }
-        
-        alert('즐겨찾기에 추가되었습니다!');
-        router.push('/my');
-      } else {
-        alert('즐겨찾기 추가에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('Save certificate error:', error);
-      alert('즐겨찾기 추가에 실패했습니다.');
-    }
+  const generateCurriculum = (certId: string) => {
+    router.push(`/curriculums?certId=${certId}`);
   };
 
-  useEffect(() => {
-    fetchCertificates();
-  }, []);
-
-  useEffect(() => {
-    filterCertificates();
-  }, [search, category, certificates]);
+  const displayCertificates = activeTab === 'search' ? searchResults?.items || [] : certificates;
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-      <h1>🔍 자격증 검색</h1>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>
+        자격증 검색 및 관리
+      </h1>
 
-      {/* 검색 필터 */}
+      {/* 탭 메뉴 */}
+      <div style={{ marginBottom: '20px', borderBottom: '1px solid #ddd' }}>
+        <button
+          onClick={() => setActiveTab('search')}
+          style={{
+            padding: '10px 20px',
+            marginRight: '10px',
+            backgroundColor: activeTab === 'search' ? '#007bff' : 'transparent',
+            color: activeTab === 'search' ? 'white' : '#007bff',
+            border: '1px solid #007bff',
+            borderRadius: '4px 4px 0 0',
+            cursor: 'pointer'
+          }}
+        >
+          🔍 자격증 검색 (Q-Net)
+        </button>
+        <button
+          onClick={() => setActiveTab('saved')}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: activeTab === 'saved' ? '#007bff' : 'transparent',
+            color: activeTab === 'saved' ? 'white' : '#007bff',
+            border: '1px solid #007bff',
+            borderRadius: '4px 4px 0 0',
+            cursor: 'pointer'
+          }}
+        >
+          📚 저장된 자격증
+        </button>
+      </div>
+
+      {/* 검색 및 필터 */}
       <div style={{ 
         display: 'flex', 
-        gap: '20px', 
-        marginBottom: '30px',
-        padding: '20px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px'
+        gap: '10px', 
+        marginBottom: '20px',
+        flexWrap: 'wrap',
+        alignItems: 'center'
       }}>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: '300px' }}>
           <input
             type="text"
-            placeholder="자격증명 또는 설명 검색..."
+            placeholder={activeTab === 'search' ? "자격증명, 분야, 등급으로 검색..." : "자격증명 또는 설명 검색..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
               width: '100%',
-              padding: '10px',
+              padding: '12px',
               border: '1px solid #ddd',
-              borderRadius: '4px'
+              borderRadius: '8px',
+              fontSize: '16px'
             }}
           />
         </div>
         
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          style={{
-            padding: '10px',
-            border: '1px solid #ddd',
-            borderRadius: '4px'
-          }}
-        >
-          <option value="">모든 카테고리</option>
-          <option value="Cloud">클라우드</option>
-          <option value="Security">보안</option>
-          <option value="Management">관리</option>
-          <option value="DevOps">데브옵스</option>
-          <option value="Network">네트워크</option>
-        </select>
+        {activeTab === 'search' && searchResults?.filters && (
+          <>
+            <select
+              value={filters.category}
+              onChange={(e) => handleFilterChange('category', e.target.value)}
+              style={{
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px'
+              }}
+            >
+              <option value="">전체 카테고리</option>
+              {searchResults.filters.categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            <select
+              value={filters.field}
+              onChange={(e) => handleFilterChange('field', e.target.value)}
+              style={{
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px'
+              }}
+            >
+              <option value="">전체 분야</option>
+              {searchResults.filters.fields.map(field => (
+                <option key={field} value={field}>{field}</option>
+              ))}
+            </select>
+
+            <select
+              value={filters.level}
+              onChange={(e) => handleFilterChange('level', e.target.value)}
+              style={{
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px'
+              }}
+            >
+              <option value="">전체 등급</option>
+              {searchResults.filters.levels.map(level => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
+          </>
+        )}
 
         <button
           onClick={() => {
             setSearch('');
-            setCategory('');
+            setFilters({ category: '', field: '', level: '' });
+            setSearchResults(null);
           }}
           style={{
-            padding: '10px 20px',
+            padding: '12px 20px',
             backgroundColor: '#6c757d',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '8px',
             cursor: 'pointer'
           }}
         >
@@ -187,32 +270,39 @@ export default function Certificates() {
         </button>
       </div>
 
-      {/* 추천 섹션 */}
-      {!search && !category && (
-        <div style={{ marginBottom: '40px' }}>
-          <h2>🌟 추천 자격증</h2>
-          <p style={{ color: '#666', marginBottom: '20px' }}>
-            인기 있는 자격증들을 확인해보세요
+      {/* 검색 결과 정보 */}
+      {activeTab === 'search' && searchResults && (
+        <div style={{ marginBottom: '20px', color: '#666' }}>
+          총 {searchResults.pagination.total}개의 자격증이 검색되었습니다.
+        </div>
+      )}
+
+      {/* 로딩 */}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div style={{ 
+            display: 'inline-block',
+            width: '40px',
+            height: '40px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #007bff',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ marginTop: '10px', color: '#666' }}>
+            {activeTab === 'search' ? '검색 중...' : '로딩 중...'}
           </p>
         </div>
       )}
 
       {/* 자격증 목록 */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>검색 중...</div>
-      ) : filteredCertificates.length === 0 ? (
+      {!loading && (
         <div style={{ 
-          textAlign: 'center', 
-          padding: '60px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '8px'
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
+          gap: '20px' 
         }}>
-          <h3>검색 결과가 없습니다</h3>
-          <p>다른 검색어를 시도해보세요.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-          {filteredCertificates.map((cert) => (
+          {displayCertificates.map((cert) => (
             <div
               key={cert.id}
               style={{
@@ -220,74 +310,114 @@ export default function Certificates() {
                 borderRadius: '8px',
                 padding: '20px',
                 backgroundColor: 'white',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                cursor: 'pointer'
               }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+              }}
+              onClick={() => viewCertificate(cert)}
             >
-              <h3>{cert.name}</h3>
-              <div style={{ color: '#666', marginBottom: '10px' }}>
-                <span style={{ 
-                  backgroundColor: '#e9ecef', 
-                  padding: '4px 8px', 
-                  borderRadius: '4px',
-                  marginRight: '10px'
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                <h3 style={{ margin: '0 0 10px 0', color: '#333', fontSize: '18px', lineHeight: '1.4' }}>
+                  {cert.name}
+                </h3>
+                <span style={{
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  marginLeft: '10px'
                 }}>
                   {cert.category}
                 </span>
-                <span style={{ 
-                  backgroundColor: cert.difficulty === 'Advanced' ? '#dc3545' : 
-                               cert.difficulty === 'Intermediate' ? '#ffc107' : '#28a745',
-                  color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '4px'
-                }}>
-                  {cert.difficulty}
-                </span>
               </div>
-              <p style={{ marginBottom: '15px', fontSize: '14px', lineHeight: '1.4' }}>
+              
+              <div style={{ marginBottom: '15px', fontSize: '14px', color: '#666' }}>
+                {cert.field && (
+                  <div style={{ marginBottom: '5px' }}>
+                    <strong>분야:</strong> {cert.field}
+                  </div>
+                )}
+                {cert.level && (
+                  <div style={{ marginBottom: '5px' }}>
+                    <strong>등급:</strong> {cert.level}
+                  </div>
+                )}
+                {cert.code && (
+                  <div style={{ marginBottom: '5px' }}>
+                    <strong>코드:</strong> {cert.code}
+                  </div>
+                )}
+                {cert.difficulty && (
+                  <div style={{ marginBottom: '5px' }}>
+                    <strong>난이도:</strong> {cert.difficulty}
+                  </div>
+                )}
+              </div>
+
+              <p style={{ 
+                color: '#666', 
+                fontSize: '14px', 
+                lineHeight: '1.5',
+                margin: '0 0 15px 0',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}>
                 {cert.description}
               </p>
-              <div style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
-                <div>📅 시험일: {cert.examDate}</div>
-                <div>💰 비용: ${cert.cost}</div>
-                <div>⏱️ 소요시간: {cert.duration}</div>
-                <div>🎯 합격점수: {cert.passingScore}</div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
+
+              <div style={{ 
+                display: 'flex', 
+                gap: '10px',
+                borderTop: '1px solid #eee',
+                paddingTop: '15px'
+              }}>
                 <button
                   onClick={(e) => {
-                    e.preventDefault();
                     e.stopPropagation();
-                    saveCertificate(cert.id);
+                    viewCertificate(cert);
                   }}
                   style={{
                     flex: 1,
-                    padding: '8px',
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ⭐ 즐겨찾기
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showDetail(cert);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
+                    padding: '8px 16px',
                     backgroundColor: '#007bff',
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    fontSize: '14px'
                   }}
                 >
-                  상세보기
+                  자세히 보기
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    generateCurriculum(cert.id);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 16px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  커리큘럼 생성
                 </button>
               </div>
             </div>
@@ -295,7 +425,52 @@ export default function Certificates() {
         </div>
       )}
 
-      {/* 자격증 상세 모달 */}
+      {/* 페이지네이션 */}
+      {activeTab === 'search' && searchResults && searchResults.pagination.totalPages > 1 && (
+        <div style={{ marginTop: '30px', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', gap: '5px' }}>
+            {Array.from({ length: searchResults.pagination.totalPages }, (_, i) => i + 1)
+              .slice(
+                Math.max(0, currentPage - 3),
+                Math.min(searchResults.pagination.totalPages, currentPage + 2)
+              )
+              .map(page => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  style={{
+                    padding: '8px 12px',
+                    backgroundColor: page === currentPage ? '#007bff' : 'white',
+                    color: page === currentPage ? 'white' : '#007bff',
+                    border: '1px solid #007bff',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* 검색 결과 없음 */}
+      {!loading && displayCertificates.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔍</div>
+          <h3 style={{ marginBottom: '10px' }}>
+            {activeTab === 'search' ? '검색 결과가 없습니다' : '저장된 자격증이 없습니다'}
+          </h3>
+          <p>
+            {activeTab === 'search' 
+              ? '다른 키워드로 검색해보세요.' 
+              : '자격증을 검색하여 저장해보세요.'
+            }
+          </p>
+        </div>
+      )}
+
+      {/* 모달 */}
       {showModal && selectedCert && (
         <div style={{
           position: 'fixed',
@@ -312,102 +487,89 @@ export default function Certificates() {
           <div style={{
             backgroundColor: 'white',
             padding: '30px',
-            borderRadius: '12px',
+            borderRadius: '8px',
             maxWidth: '600px',
             width: '90%',
             maxHeight: '80vh',
             overflow: 'auto'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>{selectedCert.name}</h2>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
+            <h2 style={{ marginBottom: '20px', color: '#333' }}>{selectedCert.name}</h2>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '10px' }}>
+                <strong>카테고리:</strong> {selectedCert.category}
+              </div>
+              {selectedCert.field && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>분야:</strong> {selectedCert.field}
+                </div>
+              )}
+              {selectedCert.level && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>등급:</strong> {selectedCert.level}
+                </div>
+              )}
+              {selectedCert.code && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>코드:</strong> {selectedCert.code}
+                </div>
+              )}
+              {selectedCert.difficulty && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>난이도:</strong> {selectedCert.difficulty}
+                </div>
+              )}
+              {selectedCert.examDate && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>시험일:</strong> {selectedCert.examDate}
+                </div>
+              )}
+              {selectedCert.cost && selectedCert.cost > 0 && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>비용:</strong> {selectedCert.cost.toLocaleString()}원
+                </div>
+              )}
+              {selectedCert.duration && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>시험시간:</strong> {selectedCert.duration}
+                </div>
+              )}
+              {selectedCert.passingScore && (
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>합격점수:</strong> {selectedCert.passingScore}
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <span style={{ 
-                backgroundColor: '#e9ecef', 
-                padding: '6px 12px', 
-                borderRadius: '6px',
-                marginRight: '10px'
-              }}>
-                {selectedCert.category}
-              </span>
-              <span style={{ 
-                backgroundColor: selectedCert.difficulty === 'Advanced' ? '#dc3545' : 
-                             selectedCert.difficulty === 'Intermediate' ? '#ffc107' : '#28a745',
-                color: 'white',
-                padding: '6px 12px',
-                borderRadius: '6px'
-              }}>
-                {selectedCert.difficulty}
-              </span>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <h3>📋 자격증 설명</h3>
-              <p style={{ lineHeight: '1.6', color: '#333' }}>
+              <strong>설명:</strong>
+              <p style={{ marginTop: '10px', lineHeight: '1.6', color: '#666' }}>
                 {selectedCert.description}
               </p>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <h3>📊 시험 정보</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div>
-                  <strong>📅 시험일:</strong>
-                  <div>{selectedCert.examDate}</div>
-                </div>
-                <div>
-                  <strong>💰 비용:</strong>
-                  <div>${selectedCert.cost}</div>
-                </div>
-                <div>
-                  <strong>⏱️ 소요시간:</strong>
-                  <div>{selectedCert.duration}</div>
-                </div>
-                <div>
-                  <strong>🎯 합격점수:</strong>
-                  <div>{selectedCert.passingScore}</div>
-                </div>
-              </div>
-            </div>
-
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
-                onClick={() => {
-                  saveCertificate(selectedCert.id);
-                  setShowModal(false);
-                }}
+                onClick={() => generateCurriculum(selectedCert.id)}
                 style={{
-                  padding: '12px 24px',
+                  padding: '10px 20px',
                   backgroundColor: '#28a745',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '4px',
                   cursor: 'pointer'
                 }}
               >
-                ⭐ 즐겨찾기 추가
+                커리큘럼 생성
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 style={{
-                  padding: '12px 24px',
+                  padding: '10px 20px',
                   backgroundColor: '#6c757d',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '4px',
                   cursor: 'pointer'
                 }}
               >
@@ -417,6 +579,13 @@ export default function Certificates() {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
