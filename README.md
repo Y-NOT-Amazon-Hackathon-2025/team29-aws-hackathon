@@ -37,7 +37,8 @@
 
 👉 [시연 영상 보러가기](https://www.youtube.com/watch?v=qlbrDKzGikE)
 
-![Demo Screenshot](img src ="https://ibb.co/cK5GwWNd" width = "600" alt= "메인페이지")
+![메인페이지](https://i.ibb.co/cK5GwWNd/your-image.png)
+
 
 ---
 
