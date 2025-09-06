@@ -34,7 +34,7 @@ export default function Register() {
     }
 
     try {
-      await axios.post(`${API_URL}/register`, {
+      await axios.post(`${API_URL.replace(/\/$/, '')}/register`, {
         email: formData.email,
         password: formData.password,
         name: formData.name

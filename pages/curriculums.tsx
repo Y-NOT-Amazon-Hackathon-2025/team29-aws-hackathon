@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import api, { isAuthenticated } from '../utils/auth';
 
 interface Curriculum {
   id: string;
@@ -15,45 +13,107 @@ interface Curriculum {
   totalHours?: number;
 }
 
+interface Certificate {
+  id: string;
+  name: string;
+  category: string;
+  difficulty: string;
+  description: string;
+}
+
 export default function Curriculums() {
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [savedCertificates, setSavedCertificates] = useState<Certificate[]>([]);
+  const [selectedCertSource, setSelectedCertSource] = useState<'search' | 'saved'>('search');
+  const [searchTerm, setSearchTerm] = useState('');
   const [newCurriculum, setNewCurriculum] = useState({
     title: '',
     certId: '',
+    certName: '',
     timeframe: 12,
     studyHoursPerWeek: 10,
     difficulty: 'intermediate'
   });
   const router = useRouter();
-  const fetchCurriculums = async () => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
 
-      const response = await axios.get(`${API_URL}/curriculums`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  const fetchCertificates = async () => {
+    try {
+      const response = await api.get('/certificates');
+      const rawData = Array.isArray(response.data) ? response.data : [];
       
-      // DynamoDB 형식 데이터 파싱
-      const parsedData = response.data.map((item: any) => ({
-        id: item.id?.S || item.id,
-        title: item.title?.S || item.title,
-        certId: item.certId?.S || item.certId,
-        status: item.status?.S || item.status,
-        progress: 0, // 별도 API로 가져와야 함
-        createdAt: item.createdAt?.S || item.createdAt,
+      const parsedData = rawData.map((item: any) => ({
+        id: item.id?.S || item.id || '',
+        name: item.name?.S || item.name || '',
+        category: item.category?.S || item.category || '',
+        difficulty: item.difficulty?.S || item.difficulty || '',
+        description: item.description?.S || item.description || ''
+      }));
+      
+      setCertificates(parsedData);
+    } catch (error) {
+      console.error('자격증 조회 실패:', error);
+    }
+  };
+
+  const fetchSavedCertificates = async () => {
+    try {
+      const response = await api.get('/certificates');
+      const allCerts = Array.isArray(response.data) ? response.data : [];
+      
+      const savedCertIds = JSON.parse(localStorage.getItem('savedCertificates') || '[]');
+      
+      const savedData = savedCertIds.map(certId => {
+        const certData = allCerts.find(cert => (cert.id?.S || cert.id) === certId);
+        if (certData) {
+          return {
+            id: certId,
+            name: certData.name?.S || certData.name || certId,
+            category: certData.category?.S || certData.category || '',
+            difficulty: certData.difficulty?.S || certData.difficulty || '',
+            description: certData.description?.S || certData.description || ''
+          };
+        }
+        return null;
+      }).filter(Boolean);
+      
+      setSavedCertificates(savedData);
+    } catch (error) {
+      console.error('즐겨찾기 자격증 조회 실패:', error);
+    }
+  };
+
+  const fetchCurriculums = async () => {
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      console.log('Fetching curriculums...');
+      const response = await api.get('/curriculums');
+      
+      const rawData = Array.isArray(response.data) ? response.data : [];
+      
+      const parsedData = rawData.map((item: any) => ({
+        id: item.id?.S || item.id || '',
+        title: item.title?.S || item.title || '',
+        certId: item.certId?.S || item.certId || '',
+        status: item.status?.S || item.status || 'active',
+        progress: 0,
+        createdAt: item.createdAt?.S || item.createdAt || '',
         aiGenerated: item.aiGenerated?.BOOL || false,
         totalHours: parseInt(item.totalHours?.N || '0')
       }));
-      
+
       setCurriculums(parsedData);
     } catch (error) {
       console.error('커리큘럼 조회 실패:', error);
+      if (error.response?.status === 401) {
+        router.push('/login');
+      }
     }
     setLoading(false);
   };
@@ -63,24 +123,28 @@ export default function Curriculums() {
       const token = localStorage.getItem('accessToken');
       if (!token) {
         alert('로그인이 필요합니다.');
+        router.push('/login');
         return;
       }
 
-      const response = await axios.post(`${API_URL}/curriculums`, newCurriculum, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.post('/curriculums', newCurriculum);
       
-      console.log('Curriculum created:', response.data);
       setShowCreateModal(false);
       fetchCurriculums();
       
-      // 생성된 커리큘럼으로 이동
-      if (response.data.id) {
-        router.push(`/curriculum/${response.data.id}`);
-      }
-    } catch (error: any) {
-      console.error('커리큘럼 생성 오류:', error);
-      alert(`커리큘럼 생성에 실패했습니다: ${error.response?.data?.error || error.message}`);
+      setNewCurriculum({
+        title: '',
+        certId: '',
+        certName: '',
+        timeframe: 12,
+        studyHoursPerWeek: 10,
+        difficulty: 'intermediate'
+      });
+      
+      alert('커리큘럼이 생성되었습니다!');
+    } catch (error) {
+      console.error('커리큘럼 생성 실패:', error);
+      alert('커리큘럼 생성에 실패했습니다.');
     }
   };
 
@@ -88,12 +152,10 @@ export default function Curriculums() {
     if (!confirm('정말 삭제하시겠습니까?')) return;
     
     try {
-      const token = localStorage.getItem('accessToken');
-      await axios.delete(`${API_URL}/curriculums/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/curriculums/${id}`);
       
       fetchCurriculums();
+      alert('커리큘럼이 삭제되었습니다.');
     } catch (error) {
       alert('삭제에 실패했습니다.');
     }
@@ -101,7 +163,20 @@ export default function Curriculums() {
 
   useEffect(() => {
     fetchCurriculums();
-  }, []);
+    fetchCertificates();
+    fetchSavedCertificates();
+    
+    const { cert, name } = router.query;
+    if (cert && name) {
+      setNewCurriculum({
+        ...newCurriculum,
+        title: `${name} 학습 계획`,
+        certId: cert as string,
+        certName: name as string
+      });
+      setShowCreateModal(true);
+    }
+  }, [router.query]);
 
   if (loading) {
     return (
@@ -118,13 +193,7 @@ export default function Curriculums() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-      {/* 헤더 */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '30px' 
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
           <h1>📚 나의 커리큘럼</h1>
           <p style={{ color: '#666', margin: '5px 0 0 0' }}>
@@ -141,61 +210,57 @@ export default function Curriculums() {
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
-            fontSize: '16px'
+            fontSize: '16px',
+            fontWeight: 'bold'
           }}
         >
           + 새 커리큘럼 만들기
         </button>
       </div>
 
-      {/* 커리큘럼 목록 */}
       {curriculums.length === 0 ? (
         <div style={{
           textAlign: 'center',
-          padding: '80px 20px',
+          padding: '60px 20px',
           backgroundColor: '#f8f9fa',
-          borderRadius: '12px'
+          borderRadius: '12px',
+          border: '2px dashed #dee2e6'
         }}>
-          <div style={{ fontSize: '3rem', marginBottom: '20px' }}>📝</div>
-          <h3>아직 커리큘럼이 없습니다</h3>
-          <p style={{ color: '#666', marginBottom: '30px' }}>
-            첫 번째 학습 계획을 만들어보세요!
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>📚</div>
+          <h3 style={{ color: '#6c757d', marginBottom: '10px' }}>아직 커리큘럼이 없습니다</h3>
+          <p style={{ color: '#6c757d', marginBottom: '20px' }}>
+            AI가 당신만의 맞춤형 학습 계획을 만들어드립니다
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
             style={{
               padding: '12px 24px',
-              backgroundColor: '#28a745',
+              backgroundColor: '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '16px'
             }}
           >
-            커리큘럼 만들기
+            첫 커리큘럼 만들기
           </button>
         </div>
       ) : (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
-          gap: '20px' 
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
           {curriculums.map((curriculum) => (
             <div
               key={curriculum.id}
               style={{
-                border: '1px solid #ddd',
+                backgroundColor: 'white',
+                border: '1px solid #e9ecef',
                 borderRadius: '12px',
                 padding: '20px',
-                backgroundColor: 'white',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 cursor: 'pointer',
-                transition: 'transform 0.2s'
+                transition: 'transform 0.2s, box-shadow 0.2s'
               }}
               onClick={() => router.push(`/curriculum/${curriculum.id}`)}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                 <h3 style={{ margin: 0, color: '#333' }}>{curriculum.title}</h3>
@@ -212,35 +277,14 @@ export default function Curriculums() {
                 )}
               </div>
               
+              <p style={{ color: '#666', margin: '0 0 15px 0', fontSize: '14px' }}>
+                자격증: {curriculum.certId}
+              </p>
+              
               <div style={{ marginBottom: '15px' }}>
-                <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>
-                  자격증: {curriculum.certId}
-                </div>
-                <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>
-                  상태: <span style={{ 
-                    color: curriculum.status === 'active' ? '#28a745' : '#6c757d',
-                    fontWeight: 'bold'
-                  }}>
-                    {curriculum.status === 'active' ? '진행중' : '대기중'}
-                  </span>
-                </div>
-                {curriculum.totalHours > 0 && (
-                  <div style={{ fontSize: '14px', color: '#666' }}>
-                    총 학습시간: {curriculum.totalHours}시간
-                  </div>
-                )}
-              </div>
-
-              {/* 진행률 바 */}
-              <div style={{ marginBottom: '15px' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  fontSize: '14px', 
-                  marginBottom: '5px' 
-                }}>
-                  <span>진행률</span>
-                  <span>{curriculum.progress}%</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '14px', color: '#666' }}>진행률</span>
+                  <span style={{ fontSize: '14px', color: '#666' }}>{curriculum.progress}%</span>
                 </div>
                 <div style={{
                   width: '100%',
@@ -252,22 +296,15 @@ export default function Curriculums() {
                   <div style={{
                     width: `${curriculum.progress}%`,
                     height: '100%',
-                    backgroundColor: curriculum.progress > 70 ? '#28a745' : 
-                                   curriculum.progress > 30 ? '#ffc107' : '#dc3545',
-                    transition: 'width 0.3s ease'
+                    backgroundColor: '#28a745',
+                    transition: 'width 0.3s'
                   }} />
                 </div>
               </div>
-
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                fontSize: '12px',
-                color: '#999'
-              }}>
-                <span>
-                  생성일: {new Date(curriculum.createdAt).toLocaleDateString()}
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#999' }}>
+                  {new Date(curriculum.createdAt).toLocaleDateString()}
                 </span>
                 <button
                   onClick={(e) => {
@@ -310,10 +347,12 @@ export default function Curriculums() {
             backgroundColor: 'white',
             padding: '30px',
             borderRadius: '12px',
-            maxWidth: '500px',
-            width: '90%'
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto'
           }}>
-            <h2>새 커리큘럼 만들기</h2>
+            <h2>🤖 AI 커리큘럼 생성</h2>
             
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '5px' }}>제목</label>
@@ -332,23 +371,113 @@ export default function Curriculums() {
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>자격증</label>
-              <select
-                value={newCurriculum.certId}
-                onChange={(e) => setNewCurriculum({...newCurriculum, certId: e.target.value})}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              >
-                <option value="">자격증 선택</option>
-                <option value="aws-saa">AWS Solutions Architect Associate</option>
-                <option value="cissp">CISSP</option>
-                <option value="pmp">Project Management Professional</option>
-                <option value="cka">Certified Kubernetes Administrator</option>
-              </select>
+              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>자격증 선택</label>
+              
+              {/* 자격증 소스 선택 */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <button
+                  onClick={() => setSelectedCertSource('search')}
+                  style={{
+                    padding: '8px 16px',
+                    border: selectedCertSource === 'search' ? '2px solid #007bff' : '1px solid #ddd',
+                    borderRadius: '4px',
+                    backgroundColor: selectedCertSource === 'search' ? '#e7f3ff' : 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔍 검색하여 선택
+                </button>
+                <button
+                  onClick={() => setSelectedCertSource('saved')}
+                  style={{
+                    padding: '8px 16px',
+                    border: selectedCertSource === 'saved' ? '2px solid #007bff' : '1px solid #ddd',
+                    borderRadius: '4px',
+                    backgroundColor: selectedCertSource === 'saved' ? '#e7f3ff' : 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ⭐ 즐겨찾기에서 선택
+                </button>
+              </div>
+
+              {/* 검색 모드 */}
+              {selectedCertSource === 'search' && (
+                <div>
+                  <input
+                    type="text"
+                    placeholder="자격증 이름으로 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      marginBottom: '10px'
+                    }}
+                  />
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                    {certificates
+                      .filter(cert => cert.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map(cert => (
+                        <div
+                          key={cert.id}
+                          onClick={() => setNewCurriculum({...newCurriculum, certId: cert.id, certName: cert.name})}
+                          style={{
+                            padding: '10px',
+                            borderBottom: '1px solid #eee',
+                            cursor: 'pointer',
+                            backgroundColor: newCurriculum.certId === cert.id ? '#e7f3ff' : 'white'
+                          }}
+                        >
+                          <div style={{ fontWeight: 'bold' }}>{cert.name}</div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>{cert.category} • {cert.difficulty}</div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 즐겨찾기 모드 */}
+              {selectedCertSource === 'saved' && (
+                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                  {savedCertificates.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                      즐겨찾기한 자격증이 없습니다.
+                    </div>
+                  ) : (
+                    savedCertificates.map(cert => (
+                      <div
+                        key={cert.id}
+                        onClick={() => setNewCurriculum({...newCurriculum, certId: cert.id, certName: cert.name})}
+                        style={{
+                          padding: '10px',
+                          borderBottom: '1px solid #eee',
+                          cursor: 'pointer',
+                          backgroundColor: newCurriculum.certId === cert.id ? '#e7f3ff' : 'white'
+                        }}
+                      >
+                        <div style={{ fontWeight: 'bold' }}>{cert.name}</div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>{cert.category} • {cert.difficulty}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* 선택된 자격증 표시 */}
+              {newCurriculum.certId && (
+                <div style={{ 
+                  marginTop: '10px', 
+                  padding: '10px', 
+                  backgroundColor: '#f8f9fa', 
+                  borderRadius: '4px',
+                  border: '1px solid #dee2e6'
+                }}>
+                  <strong>선택된 자격증:</strong> {newCurriculum.certName}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
@@ -358,8 +487,6 @@ export default function Curriculums() {
                   type="number"
                   value={newCurriculum.timeframe}
                   onChange={(e) => setNewCurriculum({...newCurriculum, timeframe: parseInt(e.target.value)})}
-                  min="4"
-                  max="52"
                   style={{
                     width: '100%',
                     padding: '10px',
@@ -369,13 +496,11 @@ export default function Curriculums() {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: '5px' }}>주당 시간</label>
+                <label style={{ display: 'block', marginBottom: '5px' }}>주당 학습시간</label>
                 <input
                   type="number"
                   value={newCurriculum.studyHoursPerWeek}
                   onChange={(e) => setNewCurriculum({...newCurriculum, studyHoursPerWeek: parseInt(e.target.value)})}
-                  min="1"
-                  max="40"
                   style={{
                     width: '100%',
                     padding: '10px',
@@ -386,7 +511,7 @@ export default function Curriculums() {
               </div>
             </div>
 
-            <div style={{ marginBottom: '30px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '5px' }}>난이도</label>
               <select
                 value={newCurriculum.difficulty}
@@ -423,15 +548,14 @@ export default function Curriculums() {
                 disabled={!newCurriculum.title || !newCurriculum.certId}
                 style={{
                   padding: '10px 20px',
-                  backgroundColor: '#007bff',
+                  backgroundColor: newCurriculum.title && newCurriculum.certId ? '#007bff' : '#ccc',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: newCurriculum.title && newCurriculum.certId ? 'pointer' : 'not-allowed',
-                  opacity: newCurriculum.title && newCurriculum.certId ? 1 : 0.6
+                  cursor: newCurriculum.title && newCurriculum.certId ? 'pointer' : 'not-allowed'
                 }}
               >
-                생성하기
+                🤖 AI로 생성하기
               </button>
             </div>
           </div>

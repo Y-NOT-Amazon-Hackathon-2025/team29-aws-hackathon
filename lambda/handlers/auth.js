@@ -4,7 +4,11 @@ const cognito = new CognitoIdentityProviderClient({});
 
 const response = (statusCode, body) => ({
   statusCode,
-  headers: { 'Access-Control-Allow-Origin': '*' },
+  headers: { 
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+  },
   body: JSON.stringify(body)
 });
 
@@ -22,36 +26,27 @@ exports.login = async (data) => {
     });
     
     const result = await cognito.send(command);
-    
-    // Get user details
-    let userName = 'User';
-    try {
-      const userCommand = new AdminGetUserCommand({
-        UserPoolId: process.env.USER_POOL_ID,
-        Username: email
-      });
-      const userResult = await cognito.send(userCommand);
-      const nameAttr = userResult.UserAttributes?.find(attr => attr.Name === 'name');
-      if (nameAttr) {
-        userName = nameAttr.Value;
-      }
-    } catch (error) {
-      console.log('Could not get user details:', error);
-    }
+    console.log('Login successful for:', email);
     
     return response(200, {
       accessToken: result.AuthenticationResult.AccessToken,
       refreshToken: result.AuthenticationResult.RefreshToken,
       idToken: result.AuthenticationResult.IdToken,
       user: {
-        userId: result.AuthenticationResult.AccessToken, // Will be parsed by JWT
         email: email,
-        name: userName
+        name: 'User'
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    return response(401, { error: 'Invalid credentials' });
+    if (error.name === 'UserNotFoundException') {
+      return response(401, { error: '사용자를 찾을 수 없습니다.' });
+    } else if (error.name === 'NotAuthorizedException') {
+      return response(401, { error: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+    } else if (error.name === 'UserNotConfirmedException') {
+      return response(401, { error: '이메일 인증이 필요합니다.' });
+    }
+    return response(401, { error: '로그인에 실패했습니다.' });
   }
 };
 

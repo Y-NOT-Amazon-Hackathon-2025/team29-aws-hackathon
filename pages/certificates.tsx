@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -16,6 +17,7 @@ interface Certificate {
 }
 
 export default function Certificates() {
+  const router = useRouter();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [filteredCertificates, setFilteredCertificates] = useState<Certificate[]>([]);
   const [search, setSearch] = useState('');
@@ -27,7 +29,7 @@ export default function Certificates() {
   const fetchCertificates = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/certificates`);
+      const response = await axios.get(`${API_URL.replace(/\/$/, '')}/certificates`);
       
       // 응답이 배열인지 확인하고 DynamoDB 형식 데이터 파싱
       const rawData = Array.isArray(response.data) ? response.data : [];
@@ -56,6 +58,10 @@ export default function Certificates() {
   };
 
   const filterCertificates = () => {
+    if (!certificates || certificates.length === 0) {
+      return;
+    }
+    
     let filtered = certificates;
     
     if (search) {
@@ -85,11 +91,27 @@ export default function Certificates() {
         return;
       }
       
-      await axios.post(`${API_URL}/certificates/${certId}/save`, {}, {
+      const response = await axios.post(`${API_URL.replace(/\/$/, '')}/certificates/${certId}/save`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('즐겨찾기에 추가되었습니다!');
+      
+      console.log('Save response:', response.data);
+      
+      if (response.data.success) {
+        // localStorage에 저장된 자격증 추가
+        const savedCerts = JSON.parse(localStorage.getItem('savedCertificates') || '["ceh", "ccna", "aws-solutions-architect-associate"]');
+        if (!savedCerts.includes(certId)) {
+          savedCerts.push(certId);
+          localStorage.setItem('savedCertificates', JSON.stringify(savedCerts));
+        }
+        
+        alert('즐겨찾기에 추가되었습니다!');
+        router.push('/my');
+      } else {
+        alert('즐겨찾기 추가에 실패했습니다.');
+      }
     } catch (error) {
+      console.error('Save certificate error:', error);
       alert('즐겨찾기 추가에 실패했습니다.');
     }
   };
@@ -232,7 +254,11 @@ export default function Certificates() {
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
-                  onClick={() => saveCertificate(cert.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    saveCertificate(cert.id);
+                  }}
                   style={{
                     flex: 1,
                     padding: '8px',
@@ -246,7 +272,11 @@ export default function Certificates() {
                   ⭐ 즐겨찾기
                 </button>
                 <button
-                  onClick={() => showDetail(cert)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showDetail(cert);
+                  }}
                   style={{
                     flex: 1,
                     padding: '8px',

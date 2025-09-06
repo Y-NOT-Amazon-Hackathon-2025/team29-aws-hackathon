@@ -1,11 +1,15 @@
-const { DynamoDBClient, ScanCommand, GetItemCommand, PutItemCommand, DeleteItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, ScanCommand, GetItemCommand, PutItemCommand, DeleteItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 
 const dynamodb = new DynamoDBClient({});
 
 const response = (statusCode, body) => ({
   statusCode,
-  headers: { 'Access-Control-Allow-Origin': '*' },
+  headers: { 
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+  },
   body: JSON.stringify(body)
 });
 
@@ -33,7 +37,7 @@ exports.save = async (certId, userId) => {
       TableName: process.env.USER_TABLE,
       Item: {
         userId: { S: userId },
-        'type#id': { S: `favorite#${certId}` },
+        type: { S: `favorite#${certId}` },
         certId: { S: certId },
         createdAt: { S: new Date().toISOString() }
       }
@@ -54,7 +58,7 @@ exports.unsave = async (certId, userId) => {
       TableName: process.env.USER_TABLE,
       Key: {
         userId: { S: userId },
-        'type#id': { S: `favorite#${certId}` }
+        type: { S: `favorite#${certId}` }
       }
     }));
     
@@ -69,10 +73,10 @@ exports.getSaved = async (userId) => {
   if (!userId) return response(401, { error: 'Unauthorized' });
   
   try {
-    const result = await dynamodb.send(new ScanCommand({
+    const result = await dynamodb.send(new QueryCommand({
       TableName: process.env.USER_TABLE,
-      FilterExpression: 'userId = :userId AND begins_with(#type, :type)',
-      ExpressionAttributeNames: { '#type': 'type#id' },
+      KeyConditionExpression: 'userId = :userId AND begins_with(#type, :type)',
+      ExpressionAttributeNames: { '#type': 'type' },
       ExpressionAttributeValues: {
         ':userId': { S: userId },
         ':type': { S: 'favorite#' }
